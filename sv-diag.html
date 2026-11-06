@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>저장 상태 보기</title>
+<style>
+:root{--bg:#fbf8f2;--fg:#222;--mut:#666;--line:#ddd;--ok:#1d7a3a;--bad:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1b1d;--fg:#eee;--mut:#aaa;--line:#444;--ok:#6fd38d;--bad:#ff8a80}}
+body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,system-ui,sans-serif}
+h1{font-size:20px;margin:0 0 8px}button{font-size:16px;padding:10px 14px;margin:4px 6px 4px 0;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--fg)}
+pre{white-space:pre-wrap;word-break:break-all;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:14px}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.mut{color:var(--mut);font-size:14px}
+</style></head><body>
+<h1>별의 스펙트럼 시험판: 저장 상태 보기</h1>
+<p class="mut">시험 사이트에만 두는 점검 페이지예요. 게임 코드가 아니고, 아무것도 지우지 않아요(맨 아래 단추를 누를 때만 지움).</p>
+<button id="run">다시 보기</button><button id="copy">결과 복사</button>
+<pre id="out">읽는 중…</pre>
+<button id="wipe" class="bad">이 사이트 저장본 모두 지우기(재시험용)</button>
+<p class="mut">지우기는 캐시 저장소와 서비스워커 등록만 지워요. 게임 저장(이어 하기)은 남아요.</p>
+<script>
+const out=document.getElementById('out');const mb=b=>(b/1048576).toFixed(1)+'MB';
+async function run(){const L=[];const p=s=>L.push(s);
+ p('시각: '+new Date().toLocaleString('ko-KR'));p('주소: '+location.origin+location.pathname);p('브라우저: '+navigator.userAgent);
+ p('홈 화면 앱으로 열림: '+((navigator.standalone||matchMedia('(display-mode: standalone)').matches)?'예':'아니요'));
+ p('온라인: '+(navigator.onLine?'예':'아니요'));
+ try{if(navigator.storage&&navigator.storage.estimate){const e=await navigator.storage.estimate();p('저장 사용량: '+mb(e.usage||0)+' / 한도 '+mb(e.quota||0));}
+  if(navigator.storage&&navigator.storage.persisted)p('지워지지 않게 표시됨(persisted): '+(await navigator.storage.persisted()?'예':'아니요'));}catch(e){p('저장 사용량 읽기 실패: '+e);}
+ try{const rs=navigator.serviceWorker?await navigator.serviceWorker.getRegistrations():[];p('서비스워커 등록: '+rs.length+'개');
+  for(const r of rs){p(' - 범위 '+r.scope+' / 활성 '+(r.active?r.active.state:'없음')+' / 대기 '+(r.waiting?'있음':'없음')+' / 설치 중 '+(r.installing?'있음':'없음'));}}catch(e){p('서비스워커 읽기 실패: '+e);}
+ try{let sw='';try{sw=await (await fetch('sw.js',{cache:'no-store'})).text();}catch(_){}
+  const cur=(/const CACHE='([^']+)'/.exec(sw)||[])[1];const F=(()=>{try{return JSON.parse(/const FILES=(\{.*?\});/s.exec(sw)[1]);}catch(_){return null;}})();
+  p('서버의 지금 판 캐시 이름: '+(cur||'(못 읽음, 오프라인일 수 있음)'));
+  const ks=await caches.keys();p('캐시 '+ks.length+'개: '+ks.join(', '));
+  for(const k of ks){const c=await caches.open(k);const rq=await c.keys();let v=0,raw=0,map=0;for(const q of rq){const u=new URL(q.url);if(/^\?v=/.test(u.search))v++;else raw++;if(u.pathname.includes('/assets/map/'))map++;}
+   p(' - '+k+(k===cur?' (지금 판)':'')+': '+rq.length+'개 (?v= 열쇠 '+v+', 주소 그대로 '+raw+', 지도 그림 '+map+')');
+   if(F&&k===cur){let have=0,tot=0;const base=new URL('.',location.href).pathname;const keys=new Set(rq.map(q=>{const u=new URL(q.url);return decodeURIComponent(u.pathname.slice(base.length))+u.search;}));
+    for(const f of Object.keys(F)){if(f==='./')continue;tot++;if(keys.has(f+'?v='+F[f]))have++;}p('   FILES 중 이 기기에 있는 것: '+have+' / '+tot);}}
+ }catch(e){p('캐시 읽기 실패: '+e);}
+ try{const sv=Object.keys(localStorage).filter(k=>k.startsWith('starvillage'));p('게임 저장 칸(localStorage): '+sv.length+'개');}catch(e){p('localStorage 읽기 실패: '+e);}
+ out.textContent=L.join('\n');}
+document.getElementById('run').onclick=run;
+document.getElementById('copy').onclick=async()=>{try{await navigator.clipboard.writeText(out.textContent);document.getElementById('copy').textContent='복사됨';}catch(_){document.getElementById('copy').textContent='복사 실패: 길게 눌러 선택';}};
+document.getElementById('wipe').onclick=async()=>{for(const k of await caches.keys())await caches.delete(k);if(navigator.serviceWorker)for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister();run();};
+run();
+</script></body></html>
