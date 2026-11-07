@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>판 업데이트 자동 점검</title>
+<style>
+:root{--bg:#fbf8f2;--fg:#222;--mut:#666;--line:#ddd;--ok:#1d7a3a;--bad:#b3261e;--warn:#8a5a00;--btn:#2f5bd3}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1b1d;--fg:#eee;--mut:#aaa;--line:#444;--ok:#6fd38d;--bad:#ff8a80;--warn:#f0c060;--btn:#6d8fff}}
+body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:18px/1.55 -apple-system,system-ui,sans-serif;max-width:760px}
+h1{font-size:22px;margin:0 0 6px}.mut{color:var(--mut);font-size:15px}
+button{font-size:20px;padding:14px 22px;margin:8px 8px 8px 0;border-radius:12px;border:0;background:var(--btn);color:#fff}
+button.sub{background:transparent;color:var(--fg);border:1px solid var(--line);font-size:16px;padding:10px 14px}
+button:disabled{opacity:.4}
+#say{font-size:22px;font-weight:600;margin:14px 0;padding:14px;border-radius:12px;border:2px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:15px}td{border-bottom:1px solid var(--line);padding:6px 4px;vertical-align:top}
+td:first-child{width:2.2em;font-weight:700}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+#gw{position:fixed;inset:0;background:#000;display:none;z-index:9}#gw iframe{width:100%;height:100%;border:0}
+#gtag{position:fixed;left:8px;top:8px;z-index:10;background:rgba(0,0,0,.7);color:#fff;font-size:15px;padding:6px 10px;border-radius:8px;display:none}
+</style></head><body>
+<h1>판 업데이트 자동 점검 (시험판 전용)</h1>
+<p class="mut">게임 코드가 아니에요. 업데이트·캐시·저장·오프라인 실행을 차례로 확인하고 표로 보여 줘요. 시험 중에 쓴 임시 저장은 끝나면 지우고, 선생님 저장은 시작 전 그대로 되돌려요.</p>
+<div id="say">인터넷이 켜진 상태에서 [시작]을 눌러 주세요.</div>
+<button id="go">시작</button><button id="cont" disabled>계속</button>
+<button id="copy" class="sub">결과 복사</button>
+<table id="tb"></table>
+<div id="gw"><iframe id="gf" title="게임"></iframe></div><div id="gtag"></div>
+<script>
+const $=id=>document.getElementById(id),sleep=ms=>new Promise(r=>setTimeout(r,ms)),T0=Date.now();
+const R=[];let snap=null,want=null,FILES=null;
+function row(st,txt){R.push([st,txt]);const tr=document.createElement('tr');tr.innerHTML='<td class="'+({'통과':'ok','실패':'bad','주의':'warn'}[st]||'')+'">'+st+'</td><td></td>';tr.lastChild.textContent=txt;$('tb').appendChild(tr);try{localStorage.setItem('svauto.result',JSON.stringify(R));}catch(_){}}
+const say=t=>$('say').textContent=t,sec=t=>((Date.now()-t)/1000).toFixed(1)+'초';
+const lsSnap=()=>{const o={};for(const k of Object.keys(localStorage))if(k.startsWith('starvillage'))o[k]=localStorage.getItem(k);return o;};
+const cacheInfo=async()=>{const o={};for(const k of await caches.keys())o[k]=(await (await caches.open(k)).keys()).length;return o;};
+async function serverSW(){const s=await (await fetch('sw.js?x='+Date.now(),{cache:'no-store'})).text();return{cache:(/const CACHE='([^']+)'/.exec(s)||[])[1],files:JSON.parse(/const FILES=(\{.*?\});/s.exec(s)[1])};}
+async function filesHave(name){const c=await caches.open(name),base=new URL('.',location.href).pathname,ks=new Set((await c.keys()).map(q=>{const u=new URL(q.url);return decodeURIComponent(u.pathname.slice(base.length))+u.search;}));let h=0,n=0,old=0;for(const f in FILES){if(f==='./')continue;n++;if(ks.has(f+'?v='+FILES[f]))h++;}
+ for(const k of ks){const m=/^(.*)\?v=([0-9a-f]+)$/.exec(k);if(m&&FILES[m[1]]&&FILES[m[1]]!==m[2])old++;}return{h,n,old};}
+// 게임을 안에서 열어 제목까지
+async function openGame(label){$('gw').style.display='block';$('gtag').style.display='block';$('gtag').textContent=label;const f=$('gf');const t=Date.now();f.src='./?svauto='+Date.now();
+ const errs=[];await new Promise(r=>f.onload=r);try{f.contentWindow.addEventListener('error',e=>errs.push(String(e.message).slice(0,120)));f.contentWindow.addEventListener('unhandledrejection',e=>errs.push(String(e.reason&&e.reason.message||e.reason).slice(0,120)));}catch(_){}
+ for(let i=0;i<1200;i++){const W=f.contentWindow;if(W&&W.G&&W.G.screen==='title')return{s:(Date.now()-t)/1000,W,errs};await sleep(250);}return{s:null,W:f.contentWindow,errs};}
+function closeGame(){const f=$('gf');f.src='about:blank';$('gw').style.display='none';$('gtag').style.display='none';}
+async function playIn(W){const G=W.G,wait=async(fn,n=480)=>{for(let i=0;i<n;i++){try{if(fn())return true;}catch(_){}await sleep(250);}return false;};
+ const idle=()=>{const v=(G.screen==='map'?G.map.V:G.scene.view&&G.scene.view());return!!(v&&(!v.px||!v.px.busy()));};
+ G.audio.voice=()=>new Promise(r=>setTimeout(r,30));G.st=G.save.fresh(9);G.st.name='자동점검';G.st.done.push('meet_lumi');G.save.write();
+ const o={};await G.packs.gate();G.gen++;G.busy=0;G.flow.resume();o['지도']=await wait(()=>G.screen==='map')&&await wait(idle);
+ for(const [id,nm] of [['library','도서관'],['plaza','광장']]){$('gtag').textContent='오프라인: '+nm+' 들어가는 중';G.gen++;G.busy=0;G.scene.enter(id);o[nm+' 들어감']=await wait(()=>G.screen==='scene')&&await wait(idle);
+  $('gtag').textContent='오프라인: '+nm+' 나오는 중';G.gen++;G.busy=0;G.scene.leave();o[nm+' 나옴']=await wait(()=>G.screen==='map')&&await wait(idle);if(!o[nm+' 나옴'])o[nm+' 나옴 화면']=String(G.screen)+'/'+(G.busy||0);}return o;}
+function restoreSave(){for(const k of Object.keys(localStorage))if(k.startsWith('starvillage')&&!(k in snap))localStorage.removeItem(k);for(const k in snap)localStorage.setItem(k,snap[k]);}
+$('go').onclick=async()=>{$('go').disabled=true;R.length=0;$('tb').innerHTML='';
+ try{row('정보',new Date().toLocaleString('ko-KR')+' / '+((navigator.standalone||matchMedia('(display-mode: standalone)').matches)?'홈 화면 앱':'Safari 탭')+' / '+navigator.userAgent.replace(/^Mozilla\/5.0 /,''));
+  if(!navigator.onLine)row('주의','지금 오프라인으로 보여요. 인터넷을 켜고 다시 시작해 주세요.');
+  snap=lsSnap();const before=await cacheInfo();row('정보','시작 전 캐시: '+(Object.entries(before).map(([k,v])=>k+' '+v+'개').join(', ')||'없음')+' / 저장 칸 '+Object.keys(snap).length+'개');
+  say('서버의 지금 판을 확인하고 있어요…');const sv=await serverSW();want=sv.cache;FILES=sv.files;row('정보','서버의 지금 판: '+want);
+  const already=(want in before)&&Object.keys(before).filter(k=>k.startsWith('starvillage-')).length===1;
+  say('업데이트를 기다리는 중이에요. 화면을 켜 둔 채 기다려 주세요(최대 5분).');const t=Date.now();const reg=await navigator.serviceWorker.getRegistration();if(reg)try{await reg.update();}catch(_){}
+  let ok=false,seen=null;for(let i=0;i<300;i++){const ks=await caches.keys(),r=await navigator.serviceWorker.getRegistration();if(ks.includes(want)&&!seen)seen=sec(t);if(ks.includes(want)&&!ks.some(k=>k.startsWith('starvillage-')&&k!==want)&&r&&r.active&&!r.waiting&&!r.installing){ok=true;break;}say('업데이트를 기다리는 중이에요… '+sec(t));await sleep(1000);}
+  row(ok?'통과':'실패',(already?'이미 새 판이었어요. ':'')+'새 판 캐시 생김 '+(seen||'안 생김')+', 옛 판 캐시 지움까지 '+(ok?sec(t):'5분 넘게 안 끝남'));
+  const after=await cacheInfo();row(Object.keys(after).length===1&&after[want]?'통과':'주의','지금 캐시: '+Object.entries(after).map(([k,v])=>k+' '+v+'개').join(', '));
+  if(after[want]){const fh=await filesHave(want);row(fh.old===0?'통과':'실패','옛 판 해시로 남은 파일 '+fh.old+'개');row(fh.h>=fh.n*0.9?'통과':'주의','FILES 중 이 기기에 있는 것 '+fh.h+' / '+fh.n+(fh.h>=fh.n*0.9?'':' (아직 다 받지 못했어요. 오프라인에서 안 열리는 장소가 있을 수 있어요)'));}
+  const cur=lsSnap(),same=Object.keys(snap).length===Object.keys(cur).length&&Object.keys(snap).every(k=>cur[k]===snap[k]);row(same?'통과':'실패','업데이트 뒤 저장 데이터 '+(same?'그대로':'달라짐')+' ('+Object.keys(cur).length+'칸)');
+  say('인터넷 켠 채로 게임 제목까지 걸리는 시간을 재요…');const g=await openGame('온라인: 제목 기다리는 중');row(g.s?'통과':'실패','온라인 제목 '+(g.s?g.s.toFixed(1)+'초':'5분 안에 안 뜸')+(g.errs.length?' / 오류 '+g.errs.join(' | '):''));closeGame();
+  say('이제 비행기 모드를 켜고(와이파이도 꺼짐 확인) [계속]을 눌러 주세요.');$('cont').disabled=false;
+ }catch(e){row('실패','점검 중 멈춤: '+e);say('점검이 멈췄어요. [결과 복사]로 보내 주세요.');$('go').disabled=false;}};
+$('cont').onclick=async()=>{$('cont').disabled=true;
+ try{let off=!navigator.onLine;try{await fetch('sw.js?x='+Date.now(),{cache:'no-store'});}catch(_){off=true;}
+  row(off?'통과':'주의',off?'오프라인 확인':'아직 인터넷이 되는 것 같아요(오프라인 결과가 아닐 수 있음)');
+  say('오프라인으로 게임을 열고 지도와 장소 두 곳을 자동으로 다녀와요…');const g=await openGame('오프라인: 제목 기다리는 중');row(g.s?'통과':'실패','오프라인 제목 '+(g.s?g.s.toFixed(1)+'초':'안 뜸'));
+  if(g.s){const t=Date.now();const o=await playIn(g.W);for(const k in o)row(k.endsWith('화면')?'정보':o[k]?'통과':'실패','오프라인 '+k+(k.endsWith('화면')?': '+o[k]:''));row(g.errs.length?'주의':'통과','게임 오류 '+(g.errs.length?g.errs.slice(0,3).join(' | '):'없음')+' ('+sec(t)+')');}
+  closeGame();restoreSave();const cur=lsSnap(),same=Object.keys(snap).every(k=>cur[k]===snap[k])&&Object.keys(cur).length===Object.keys(snap).length;row(same?'통과':'실패','시험 저장 지우고 선생님 저장 '+(same?'그대로 되돌림':'되돌리기 실패')+' ('+Object.keys(cur).length+'칸)');
+  const bad=R.filter(r=>r[0]==='실패').length;say(bad?'실패 '+bad+'개가 있어요. [결과 복사]로 보내 주세요.':'모두 끝났어요. [결과 복사]를 눌러 보내 주세요. 이제 비행기 모드를 꺼도 돼요.');
+ }catch(e){try{closeGame();if(snap)restoreSave();}catch(_){}row('실패','오프라인 점검 중 멈춤: '+e);say('점검이 멈췄어요. [결과 복사]로 보내 주세요.');}
+ $('go').disabled=false;};
+$('copy').onclick=async()=>{const s=R.map(r=>r[0]+'\t'+r[1]).join('\n')||'(아직 결과 없음)';try{await navigator.clipboard.writeText(s);$('copy').textContent='복사됨';}catch(_){const ta=document.createElement('textarea');ta.value=s;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');$('copy').textContent='복사됨';}catch(__){$('copy').textContent='복사 실패';}ta.remove();}};
+</script></body></html>
