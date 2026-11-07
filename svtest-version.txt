@@ -1,3 +1,3 @@
 시험판(학생용 아님)
 원본: star-village-source improvement/star-village-audit-0f87a160 3f7744f3
-판 2: 업데이트 시험용, assets/map/_v2_/map2_depth.png 1개만 바꿈, 캐시 starvillage-0089bb16v2
+판 3: 업데이트 시험용, assets/map/_v2_/map2_depth.png 끝 표시만 V2→V3, 캐시 starvillage-0089bb16v3 (판 2 기록은 가지 pan2)
