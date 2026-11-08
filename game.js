@@ -4154,7 +4154,10 @@ G.map = (() => {
     let b = w.useB;
     if (!b) {
       if (!on) return;
-      b = w.useB = G.el('div', 'wuse', w.el);   // 11/8 선생님: 도트 말풍선(모양은 css)
+      // 11/8: 말풍선은 인물 칸 밖(지도 위 겹)에 두어 앞에 선 사람·길벗에 가려지지 않게. 인물이 움직이면 함께 옮김(set 감쌈)
+      const h = w.useH = G.el('div', 'wuse-at', V.fx); if (w.age !== 1) h.style.setProperty('--age', w.age);
+      const s0 = w.set; w.set = (x, y) => { s0(x, y); h.style.transform = w.el.style.transform; h.style.visibility = w.el.style.visibility; }; w.set(w.x, w.y);
+      b = w.useB = G.el('div', 'wuse pxbox', h);   // 11/8 선생님: 둥근 도트 말풍선(모양은 css .pxbox)
       { const t = G.el('img', 'wuse-tail', b); t.src = G.asset('assets/ui/px/bubble_px_tail.png'); t.alt = ''; t.draggable = false; }
       if (U.key) { const a = G.el('img', 'wuse-obj', b); a.src = G.asset('assets/map/acc_' + U.key + '.png'); a.alt = ''; a.draggable = false; }
       const e = G.el('img', 'wuse-emo', b); e.src = G.asset(U.emo === 'note' ? 'assets/ui/px/note_1.png' : 'assets/ui/px/emo_heart.png'); e.alt = ''; e.draggable = false;
@@ -4174,7 +4177,7 @@ G.map = (() => {
     const g = G.gen, v0 = V, rm = G.reduced(), ok = () => g === G.gen && V === v0;
     let skip = false; const tapSkip = () => { skip = true; G.audio.stopVoice(); };
     const cover = G.el('div', 'wake-skip', G.$('#overlay')); cover.setAttribute('aria-label', '누르면 넘어가요'); cover.addEventListener('click', tapSkip);
-    const cap = G.el('div', 'wake-cap', cover), capN = G.el('b', '', cap), capT = G.el('span', '', cap); cap.hidden = true;
+    const cap = G.el('div', 'wake-cap pxbox', cover), capN = G.el('b', '', cap), capT = G.el('span', '', cap); cap.hidden = true;
     const wait = async (s) => { const t = performance.now() + s * 1000; while (!skip && ok() && performance.now() < t) await G.wait(0.1); };
     const temp = [], back = { ...V.cam };
     G.busy++; Mp.camFree = true;
@@ -4210,7 +4213,7 @@ G.map = (() => {
       if (!ok()) return;
       await camTween(back, skip || rm ? 0 : 0.9);
     } finally {
-      cover.remove(); for (const w of temp) { w.el.remove(); const k = (v0.walkers || []).indexOf(w); if (k >= 0) v0.walkers.splice(k, 1); }   // 임시 주민은 지도 걷는 이 목록에서도 뺌(쌓이지 않게)
+      cover.remove(); for (const w of temp) { w.el.remove(); if (w.useH) w.useH.remove(); const k = (v0.walkers || []).indexOf(w); if (k >= 0) v0.walkers.splice(k, 1); }   // 임시 주민은 지도 걷는 이 목록에서도 뺌(쌓이지 않게)
       for (const v of vills) v.hold = false;
       G.busy = Math.max(0, G.busy - 1); Mp.camFree = false;
     }
@@ -16030,7 +16033,7 @@ G.titleBook = (ov, onStart) => {
 // main.js — 시작과 흐름: 타이틀(U1) → 저장 칸 번호 고르기(U2) → 이름 → 인트로 C1 → 루미 만남 → 마을 지도
 'use strict';
 G.VERSION = '별의 스펙트럼 (2026-11-08)';
-G.BUILT = '2026-11-08 17:01';   // 10/6 선생님: 최종본 전까지 표지 오른쪽 아래에 최종 수정 일시 (개발자 확인용)   // 10/4: 날짜는 build.py가 만든 날로 바꿈
+G.BUILT = '2026-11-08 18:20';   // 10/6 선생님: 최종본 전까지 표지 오른쪽 아래에 최종 수정 일시 (개발자 확인용)   // 10/4: 날짜는 build.py가 만든 날로 바꿈
 G.defaults = { volume: 0.9, volVoice: 1, volMusic: 1, volSfx: 1, voiceOn: true, textBig: false, help: 'normal', choiceOne: false, reduceMotion: false, reduceAuto: true, hideSkip: false, shortStory: false, fast: false, level: 'normal', slotCount: 12, light: false, tapPlace: true, soundLight: true };
 G.applySettings = () => {
   const s = G.settings;
