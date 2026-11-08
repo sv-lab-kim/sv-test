@@ -4154,7 +4154,8 @@ G.map = (() => {
     let b = w.useB;
     if (!b) {
       if (!on) return;
-      b = w.useB = G.el('div', 'wuse', w.el);
+      b = w.useB = G.el('div', 'wuse', w.el);   // 11/8 선생님: 도트 말풍선(모양은 css)
+      { const t = G.el('img', 'wuse-tail', b); t.src = G.asset('assets/ui/px/bubble_px_tail.png'); t.alt = ''; t.draggable = false; }
       if (U.key) { const a = G.el('img', 'wuse-obj', b); a.src = G.asset('assets/map/acc_' + U.key + '.png'); a.alt = ''; a.draggable = false; }
       const e = G.el('img', 'wuse-emo', b); e.src = G.asset(U.emo === 'note' ? 'assets/ui/px/note_1.png' : 'assets/ui/px/emo_heart.png'); e.alt = ''; e.draggable = false;
     }
@@ -16029,7 +16030,7 @@ G.titleBook = (ov, onStart) => {
 // main.js — 시작과 흐름: 타이틀(U1) → 저장 칸 번호 고르기(U2) → 이름 → 인트로 C1 → 루미 만남 → 마을 지도
 'use strict';
 G.VERSION = '별의 스펙트럼 (2026-11-08)';
-G.BUILT = '2026-11-08 16:42';   // 10/6 선생님: 최종본 전까지 표지 오른쪽 아래에 최종 수정 일시 (개발자 확인용)   // 10/4: 날짜는 build.py가 만든 날로 바꿈
+G.BUILT = '2026-11-08 17:01';   // 10/6 선생님: 최종본 전까지 표지 오른쪽 아래에 최종 수정 일시 (개발자 확인용)   // 10/4: 날짜는 build.py가 만든 날로 바꿈
 G.defaults = { volume: 0.9, volVoice: 1, volMusic: 1, volSfx: 1, voiceOn: true, textBig: false, help: 'normal', choiceOne: false, reduceMotion: false, reduceAuto: true, hideSkip: false, shortStory: false, fast: false, level: 'normal', slotCount: 12, light: false, tapPlace: true, soundLight: true };
 G.applySettings = () => {
   const s = G.settings;
