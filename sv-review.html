@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>배포 전 사파리 검토</title>
+<style>
+:root{--bg:#fbf8f2;--fg:#222;--mut:#666;--line:#ddd;--ok:#1d7a3a;--bad:#b3261e;--warn:#8a5a00;--btn:#2f5bd3}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1b1d;--fg:#eee;--mut:#aaa;--line:#444;--ok:#6fd38d;--bad:#ff8a80;--warn:#f0c060;--btn:#6d8fff}}
+body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:18px/1.55 -apple-system,system-ui,sans-serif;max-width:760px}
+h1{font-size:22px;margin:0 0 6px}.mut{color:var(--mut);font-size:15px}
+button{font-size:20px;padding:14px 22px;margin:8px 8px 8px 0;border-radius:12px;border:0;background:var(--btn);color:#fff}
+button.sub{background:transparent;color:var(--fg);border:1px solid var(--line);font-size:16px;padding:10px 14px}
+button:disabled{opacity:.4}
+#say{font-size:20px;font-weight:600;margin:14px 0;padding:14px;border-radius:12px;border:2px solid var(--line)}
+#bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:6px 0 12px}#bar i{display:block;height:100%;width:0;background:var(--btn)}
+table{border-collapse:collapse;width:100%;font-size:15px}td{border-bottom:1px solid var(--line);padding:6px 4px;vertical-align:top}
+td:first-child{width:2.6em;font-weight:700;white-space:nowrap}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+#gw{position:fixed;inset:0;background:#000;display:none;z-index:9}#gw iframe{width:100%;height:100%;border:0}
+#gtag{position:fixed;left:8px;top:8px;z-index:10;background:rgba(0,0,0,.72);color:#fff;font-size:15px;padding:6px 10px;border-radius:8px;display:none;max-width:80vw}
+#stop{position:fixed;right:8px;top:8px;z-index:10;display:none;font-size:15px;padding:8px 12px;margin:0;background:#b3261e}
+</style></head><body>
+<h1>배포 전 사파리 검토 (시험판 전용)</h1>
+<p class="mut">게임 코드가 아니에요. 이 기기의 사파리에서 게임을 열어 장소를 차례로 들어갔다 나오고, 갈대밭 같은 무거운 곳은 여러 번 드나들며 메모리, 화면 빠르기, 오류, 쌓이는 것을 재요. 약 5~10분 걸려요. 화면을 켜 둔 채 기다려 주세요. 선생님 저장은 끝나면 그대로 되돌려요.</p>
+<div id="say">[시작]을 눌러 주세요.</div>
+<div id="bar"><i id="barI"></i></div>
+<button id="go">시작</button><button id="copy" class="sub">결과 복사</button><button id="quick" class="sub">빠르게(되풀이만)</button>
+<table id="tb"></table>
+<div id="gw"><iframe id="gf" title="게임"></iframe></div><div id="gtag"></div><button id="stop">멈춤</button>
+<script>
+// 11/8 선생님: "배포하기 전에 매번 사파리에서 자동으로 검토 실행할 도구" → 결과를 복사해 채팅에 붙여 넣음
+// 기준(qa/tests/mem과 같음): 숨김없는 메모리 G.memNow 150MB, 되풀이 때 메모리 +5MB·화면 요소 +20 넘게 늘면 실패
+const VER='sv-review 1.0 (11/8)';
+const $=id=>document.getElementById(id),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const BUD=150,KEY='svreview.run';
+const R=[];let snap=null,stopped=false;
+function row(st,txt){R.push([st,txt]);const tr=document.createElement('tr');tr.innerHTML='<td class="'+({'통과':'ok','실패':'bad','주의':'warn'}[st]||'')+'">'+st+'</td><td></td>';tr.lastChild.textContent=txt;$('tb').appendChild(tr);}
+const say=t=>$('say').textContent=t,bar=f=>$('barI').style.width=Math.round(f*100)+'%';
+const lsSnap=()=>{const o={};for(const k of Object.keys(localStorage))if(k.startsWith('starvillage'))o[k]=localStorage.getItem(k);return o;};
+function restoreSave(){if(!snap)return;for(const k of Object.keys(localStorage))if(k.startsWith('starvillage')&&!(k in snap))localStorage.removeItem(k);for(const k in snap)localStorage.setItem(k,snap[k]);}
+// 사파리가 페이지를 죽였다가 다시 열면(메모리 부족) 지난 실행이 어디서 멈췄는지 알려 줌
+function mark(step){try{localStorage.setItem(KEY,JSON.stringify({step,t:Date.now(),snap}));}catch(_){}}
+(function crashed(){let o=null;try{o=JSON.parse(localStorage.getItem(KEY)||'null');}catch(_){}if(!o)return;
+ row('실패','지난 검토가 끝나지 못했어요. 마지막 단계: '+o.step+' ('+new Date(o.t).toLocaleTimeString('ko-KR')+'). 사파리가 메모리 부족으로 페이지를 다시 열었을 수 있어요.');
+ if(o.snap){snap=o.snap;restoreSave();row('정보','지난 실행 전 저장을 되돌렸어요.');}localStorage.removeItem(KEY);})();
+async function openGame(){$('gw').style.display='block';$('gtag').style.display='block';$('stop').style.display='block';const f=$('gf'),t=Date.now();
+ const errs=[];f.src='./?svreview='+Date.now();await new Promise(r=>f.onload=r);const W=f.contentWindow;
+ try{W.addEventListener('error',e=>errs.push(String(e.message||e.type).slice(0,140)));W.addEventListener('unhandledrejection',e=>errs.push('약속 실패: '+String(e.reason&&e.reason.message||e.reason).slice(0,140)));
+  const ce=W.console.error.bind(W.console);W.console.error=(...a)=>{errs.push('콘솔: '+a.map(String).join(' ').slice(0,140));ce(...a);};}catch(_){}
+ for(let i=0;i<1200;i++){if(W.G&&W.G.screen==='title')return{s:(Date.now()-t)/1000,W,errs};await sleep(250);}return{s:null,W,errs};}
+function closeGame(){$('gf').src='about:blank';$('gw').style.display='none';$('gtag').style.display='none';$('stop').style.display='none';}
+const tag=t=>$('gtag').textContent=t;
+// 게임 창 안에서 쓰는 것들
+function kit(W,errs){const G=W.G,D=W.document;
+ const wait=async(fn,n=160)=>{for(let i=0;i<n;i++){if(stopped)return false;try{if(fn())return true;}catch(_){}await sleep(250);}return false;};
+ const view=()=>G.screen==='map'?G.map.V:(G.scene.view&&G.scene.view());
+ const idle=()=>{const v=view();return!!(v&&(!v.px||!v.px.busy()))&&!D.querySelector('#fade.on');};
+ const mem=()=>{try{return G.memNow?G.memNow():{total:-1};}catch(_){return{total:-1};}};
+ const fps=async(ms=1500)=>{let n=0,on=true;const f=()=>{n++;if(on)W.requestAnimationFrame(f);};W.requestAnimationFrame(f);await sleep(ms);on=false;return Math.round(n*1000/ms);};
+ const dom=()=>D.getElementsByTagName('*').length;
+ // 반복 때 쌓이는 것: 살아 있는 setInterval, 게임 시계 일감
+ const live=new Set(),si=W.setInterval,ci=W.clearInterval;W.setInterval=function(...a){const id=si.apply(this,a);live.add(id);return id;};W.clearInterval=function(id){live.delete(id);return ci.call(this,id);};
+ const up=new Set(),ev=G.every;G.every=fn=>{up.add(fn);const off=ev(fn);return()=>{up.delete(fn);return off();};};
+ // 게임의 '다른 곳으로 가기'와 같게: 하던 연출은 건너뛰어 끝내고(남지 않게), 대화를 닫고, 흐름 번호를 바꿈
+ const settle=async()=>{try{if(G.cut&&G.cut.active)G.cut.active.skip();}catch(_){}try{if(G.dialog&&G.dialog.active&&G.dialog.close)G.dialog.close();}catch(_){}await wait(()=>!D.querySelector('#overlay .cut'),40);G.gen++;G.busy=0;};
+ const toMap=async()=>{await settle();try{await G.map.show({});}catch(_){}return await wait(()=>G.screen==='map')&&await wait(idle,80);};
+ const enter=async id=>{await settle();const t=Date.now();try{G.scene.enter(id);}catch(e){errs.push('들어가기 '+id+': '+e.message);}const ok=await wait(()=>G.screen==='scene'&&G.st.place&&view())&&await wait(()=>!D.querySelector('#overlay .cut')&&!(G.dialog&&G.dialog.active),240)&&await wait(idle,120);return{ok,s:(Date.now()-t)/1000};};
+ // 대사·고르기·건너뛰기는 사람이 누르듯 넘김(qa advanceUntil과 같음)
+ const vis=e=>e&&e.offsetParent!==null&&W.getComputedStyle(e).visibility!=='hidden';
+ const adv=setInterval(()=>{try{const nx=[...D.querySelectorAll('.dlg-next.ready')].find(vis);if(nx)return nx.click();const cs=[...D.querySelectorAll('.choice')].filter(vis);if(cs.length)return cs[0].click();const sk=[...D.querySelectorAll('.skip')].find(vis);if(sk)sk.click();}catch(_){}},400);
+ return{G,wait,idle,mem,fps,dom,live,up,toMap,enter,settle,view,off:()=>clearInterval(adv)};}
+async function run(quick){stopped=false;$('go').disabled=$('quick').disabled=true;R.length=0;$('tb').innerHTML='';bar(0);
+ snap=lsSnap();mark('시작');
+ try{
+  row('정보',VER+' / '+new Date().toLocaleString('ko-KR')+' / '+((navigator.standalone||matchMedia('(display-mode: standalone)').matches)?'홈 화면 앱':'사파리 탭')+' / 화면 '+screen.width+'x'+screen.height+'@'+devicePixelRatio+' / '+navigator.userAgent.replace(/^Mozilla\/5.0 /,''));
+  try{const s=await (await fetch('sw.js?x='+Date.now(),{cache:'no-store'})).text();row('정보','서버 판: '+((/const CACHE='([^']+)'/.exec(s)||[])[1]||'모름'));}catch(_){}
+  say('게임을 여는 중이에요…');tag('게임 여는 중');mark('게임 열기');
+  const g=await openGame();if(!g.s){row('실패','게임 제목이 5분 안에 안 떴어요.');return;}
+  row(g.s<20?'통과':'주의','게임 제목까지 '+g.s.toFixed(1)+'초');
+  const K=kit(g.W,g.errs),G=K.G;window.__K=K;
+  try{const c=g.W.document.createElement('canvas').getContext('webgl2')||g.W.document.createElement('canvas').getContext('webgl');row('정보','WebGL '+(c?'있음, 그림 최대 '+c.getParameter(c.MAX_TEXTURE_SIZE):'없음')+' / 빠른 화면(PixiJS) '+(g.W.KTX?'압축 그림 '+Object.keys(g.W.KTX).length+'장':'없음'));}catch(_){}
+  // 시험용 저장: 끝나면 선생님 저장으로 되돌림
+  G.audio.voice=()=>new Promise(r=>setTimeout(r,30));G.st=G.save.fresh(9);G.st.name='자동검토';G.st.done.push('meet_lumi');G.save.write();G.settings.fast=true;G.applySettings&&G.applySettings();
+  if(G.packs)await G.packs.gate();G.gen++;G.busy=0;G.flow.resume();await K.wait(()=>G.screen==='map',240);await K.wait(K.idle,120);
+  const m0=K.mem();row(m0.total<=BUD?'통과':'실패','지도 메모리 '+m0.total+'MB (사진 '+m0.img+' 바탕 '+m0.bg+' 판 '+m0.canvas+' 그래픽 '+m0.gpu+'), 화면 빠르기 '+await K.fps()+'fps');
+  // 1) 장소 한 바퀴: 별마다 열리는 장소를 한 번씩
+  const CH=['s2_1','s3_1','s4_1','s5_1','s6_1'],seen=new Set();let worst={m:0,id:''},slow=[],low=[];
+  if(!quick){for(let ci=0;ci<CH.length&&!stopped;ci++){const ch=CH[ci];tag(ch+' 준비');mark(ch+' 준비');
+    try{await K.settle();await G.flow.chapter(ch);}catch(e){g.errs.push('별 '+ch+': '+e.message);}
+    if(G.packs)await G.packs.gate();await sleep(2500);await K.toMap();
+    const ids=G.D.places.places.map(q=>G.map.sceneOf(q)).filter(id=>id&&!seen.has(id));
+    for(let i=0;i<ids.length&&!stopped;i++){const id=ids[i];seen.add(id);say('장소 둘러보기 '+ch+': '+id+' ('+(i+1)+'/'+ids.length+')');tag(id+' 들어가는 중');mark(ch+' '+id);bar((ci+i/ids.length)/CH.length*0.6);
+     const e=await K.enter(id);await sleep(900);const m=K.mem(),f=await K.fps(1200);
+     const st=!e.ok?'실패':m.total>BUD?'실패':(e.s>8||f<30)?'주의':'통과';row(st,id+': 들어가기 '+(e.ok?e.s.toFixed(1)+'초':'안 됨')+', 메모리 '+m.total+'MB (그래픽 '+m.gpu+'), '+f+'fps');
+     if(m.total>worst.m)worst={m:m.total,id};if(e.s>8)slow.push(id);if(f<30)low.push(id);
+     tag(id+' 나오는 중');if(!await K.toMap())row('실패',id+': 지도로 못 나옴 ('+G.screen+')');}}
+   row(worst.m<=BUD?'통과':'실패','장소 '+seen.size+'곳: 가장 무거운 곳 '+worst.id+' '+worst.m+'MB'+(slow.length?' / 느린 곳 '+slow.join(','):'')+(low.length?' / 30fps 밑 '+low.join(','):''));}
+  // 2) 되풀이: 같은 곳을 여러 번 드나들어도 쌓이지 않는지
+  const LOOP=[['s3reeds','갈대밭',6],['s3harang','하랑이네',4],['s3dock','나루터',4]];
+  try{await K.settle();await G.flow.chapter('s3_1');}catch(_){}if(G.packs)await G.packs.gate();await sleep(2000);
+  for(const m of ['s3h_reedgo'])if(!G.st.done.includes(m))G.st.done.push(m);if(!G.st.seen.includes('s3reeds:in'))G.st.seen.push('s3reeds:in');
+  for(let li=0;li<LOOP.length&&!stopped;li++){const [id,nm,n]=LOOP[li];const rows=[];
+   for(let k=0;k<n&&!stopped;k++){say('되풀이 '+nm+' '+(k+1)+'/'+n);tag(nm+' '+(k+1)+'번째');mark('되풀이 '+nm+' '+(k+1));bar(0.6+(li+k/n)/LOOP.length*0.4);
+    const e=await K.enter(id);const V=K.view();
+    if(e.ok&&V&&V.onStep&&id==='s3reeds'){for(const [x,y] of [[1500,1500],[2200,2200],[1200,2600],[3000,2000]]){try{const s=V.spr.hero;V.walk('hero',[x-s.rect[2]/2,y+18-s.rect[3],s.rect[2],s.rect[3]],0);V.onStep(x,y);}catch(_){}await sleep(500);}}
+    const m=K.mem().total,f=await K.fps(1000);await K.toMap();await sleep(1200);
+    rows.push({m,mm:K.mem().total,f,dom:K.dom(),iv:K.live.size,up:K.up.size,ok:e.ok});}
+   if(rows.length<2)continue;const a=rows[1],b=rows[rows.length-1];
+   const grow=b.mm-a.mm,gd=b.dom-a.dom,gi=b.iv-a.iv,gu=b.up-a.up,bad=rows.some(r=>!r.ok)||rows.some(r=>r.m>BUD)||grow>5||gd>20||gi>0||gu>0;
+   row(bad?'실패':'통과',nm+' '+rows.length+'번: 안에서 메모리 '+rows.map(r=>r.m).join('/')+'MB, 나온 뒤 지도 메모리 '+rows.map(r=>r.mm).join('→')+'MB, fps '+rows.map(r=>r.f).join('/')+', 나온 뒤 화면 요소 '+a.dom+'→'+b.dom+', 타이머 '+a.iv+'→'+b.iv+', 시계 일감 '+a.up+'→'+b.up);}
+  const E=[...new Set(g.errs)];row(E.length?'실패':'통과','오류 '+E.length+'개'+(E.length?': '+E.slice(0,8).join(' | '):''));
+  if(stopped)row('주의','중간에 멈춤을 눌렀어요.');
+  const nb=R.filter(r=>r[0]==='실패').length,nw=R.filter(r=>r[0]==='주의').length;
+  row(nb?'실패':'통과','모두: 실패 '+nb+', 주의 '+nw);
+ }catch(e){row('실패','검토 도구 오류: '+(e&&e.message||e));}
+ finally{try{window.__K&&window.__K.off();}catch(_){}closeGame();restoreSave();try{localStorage.removeItem(KEY);}catch(_){}bar(1);say('끝났어요. [결과 복사]를 눌러 채팅에 붙여 넣어 주세요.');$('go').disabled=$('quick').disabled=false;}}
+$('go').onclick=()=>run(false);$('quick').onclick=()=>run(true);$('stop').onclick=()=>{stopped=true;};
+$('copy').onclick=async()=>{const t='[사파리 검토 결과]\n'+R.map(r=>r[0]+' '+r[1]).join('\n');try{await navigator.clipboard.writeText(t);say('복사했어요. 채팅에 붙여 넣어 주세요.');}catch(_){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();say('복사했어요. 채팅에 붙여 넣어 주세요.');}};
+</script></body></html>

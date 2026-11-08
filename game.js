@@ -1709,7 +1709,9 @@ const pxStall = () => (matchMedia('(pointer: coarse)').matches ? 30000 : 20000);
 const pxLate = (p, ms, what) => new Promise((ok, no) => { const tm = setTimeout(() => { console.warn('[늦음]', what); no(new Error('late')); }, ms); p.then((v) => { clearTimeout(tm); ok(v); }, (e) => { clearTimeout(tm); no(e); }); });
 const pxLoad1 = (r, url) => { const p = r.p = G.px.P.Assets.load(url); r.bad = false; p.catch(() => { if (r.p === p) r.bad = true; }); };
 G.pxGet = (url) => { url = pxAbs(url); let r = pxRC.get(url); if (!r) { r = { n: 0 }; pxLoad1(r, url); pxRC.set(url, r); } else if (r.bad) pxLoad1(r, url); r.n++; clearTimeout(r.tm);
-  return r.p.then((t) => { r.t = t; if (t) { t.source.scaleMode = 'linear'; t.source.alphaMode = 'premultiply-alpha-on-upload'; } return t; }); };   // 줄여 보일 때 일렁이지 않게, 반투명 겹이 두 번 곱해지지 않게
+  // 11/8 사파리 검토 도구가 찾음: 놓은 그림을 1초 뒤 내리는(unload) 사이에 같은 그림을 다시 부르면 이미 지워진 그림(source 없음)을 받을 수 있음 → 한 번 새로 받음
+  const fix = (t, again) => { if (t && (t.destroyed || !t.source)) { if (again) return null; pxLoad1(r, url); return r.p.then((u) => fix(u, true)); } r.t = t; if (t) { t.source.scaleMode = 'linear'; t.source.alphaMode = 'premultiply-alpha-on-upload'; } return t; };
+  return r.p.then((t) => fix(t, false)); };   // 줄여 보일 때 일렁이지 않게, 반투명 겹이 두 번 곱해지지 않게
 G.pxPut = (url) => { url = pxAbs(url); const r = pxRC.get(url); if (!r || --r.n > 0) return; clearTimeout(r.tm);
   r.tm = setTimeout(() => { if (r.n > 0) return; pxRC.delete(url); r.p.then(() => G.px.P.Assets.unload(url)).catch(() => { }); }, 1000); };
 // 10/30 메모리 계기판(memmeter.js): 그래픽 칩에 올린 그림 크기. 압축 그림(ASTC·BC7·ETC2)은 점 하나 1바이트, 아니면 4
@@ -1729,7 +1731,7 @@ const pxKit = (V, X, keepDepth) => {
   const { P, app } = X; let gone = false, dep = null; const dk = new Float32Array([1, 1, 1]), meshes = new Set();
   const T = new Map();
   const tex = (url, near) => { if (!url) return null; let r = T.get(url); if (!r) { r = { t: null }; T.set(url, r);
-    G.pxGet(url).then((t) => { if (gone || !t) return; t.source.scaleMode = near ? 'nearest' : 'linear'; r.t = t; G.pxDirty = true; }, () => { }); } return r.t; };
+    G.pxGet(url).then((t) => { if (gone || !t || !t.source) return; t.source.scaleMode = near ? 'nearest' : 'linear'; r.t = t; G.pxDirty = true; }, () => { }); } return r.t; };
   const empty = P.Texture.EMPTY.source;
   // 판 자리: uP = 왼위 x, y, 가로 축 x, y / uQ = 세로 축 x, y (기울어진 그림자도 그대로)
   const vertex = `in vec2 aPosition; out vec2 vUV; out vec2 vP; out vec2 vL;
@@ -15933,7 +15935,7 @@ G.titleBook = (ov, onStart) => {
 // main.js — 시작과 흐름: 타이틀(U1) → 저장 칸 번호 고르기(U2) → 이름 → 인트로 C1 → 루미 만남 → 마을 지도
 'use strict';
 G.VERSION = '별의 스펙트럼 (2026-11-08)';
-G.BUILT = '2026-11-08 12:38';   // 10/6 선생님: 최종본 전까지 표지 오른쪽 아래에 최종 수정 일시 (개발자 확인용)   // 10/4: 날짜는 build.py가 만든 날로 바꿈
+G.BUILT = '2026-11-08 13:20';   // 10/6 선생님: 최종본 전까지 표지 오른쪽 아래에 최종 수정 일시 (개발자 확인용)   // 10/4: 날짜는 build.py가 만든 날로 바꿈
 G.defaults = { volume: 0.9, volVoice: 1, volMusic: 1, volSfx: 1, voiceOn: true, textBig: false, help: 'normal', choiceOne: false, reduceMotion: false, reduceAuto: true, hideSkip: false, shortStory: false, fast: false, level: 'normal', slotCount: 12, light: false, tapPlace: true, soundLight: true };
 G.applySettings = () => {
   const s = G.settings;
