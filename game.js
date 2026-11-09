@@ -2050,7 +2050,7 @@ void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152
   float a = uCol;
   ${RN.map((i) => `if (uR${i}.w > 0.0) a = max(a, uR${i}.w * (1.0 - smoothstep(.45, 1.0, distance(vP, uR${i}.xy) / uR${i}.z)));`).join('\n  ')}
   a = clamp(a, 0.0, 1.0); vec3 o = mix(v, c, a);
-  if (uShOn > .5) o *= mix(1.0, texture(uShade, vP * uShK).r, .75 + .25 * a);   // 11/9 물건 그림자(색 되찾기 전 저녁빛에서는 옅게)
+  if (uShOn > .5) o *= texture(uShade, vP * uShK).r;   // 11/9 물건 그림자(선생님 '그림자 없는데?' 뒤 흑백·저녁빛에서도 그대로 진하게)
   finalColor = vec4(o, 1.0); }`;
   // 바탕 그림 이름은 uTex: PixiJS Mesh가 uColor(물들이기 색)를 따로 써서 겹치면 매 장면 오류
   let mesh = null, tc = null, tw = null, gone = false, tick = null, col = null, wd = null;   // col: 장면의 빈 색 img(투명도만 읽음), wd: 세상 판(pxWorld)
@@ -2147,7 +2147,7 @@ void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152
   if (uHasWarm > .5) v = mix(v, c, texture(uWarm, vP * uWarmK).a);
   float a; if (uFull >= 0.0) a = uFull; else { float keep = 1.0; ${ZN.map((i) => `keep *= 1.0 - zone(uZ${i}, uA${i});`).join(' ')} a = 1.0 - keep; }
   a = clamp(a * uOp, 0.0, 1.0); vec3 o = mix(v, c, a);
-  if (uShOn > .5) o *= mix(1.0, texture(uShade, vP * uShK).r, uShS * (.75 + .25 * a));   // 11/9 물건 그림자(저녁빛·밤에는 옅게)
+  if (uShOn > .5) o *= mix(1.0, texture(uShade, vP * uShK).r, uShS);   // 11/9 물건 그림자(선생님 '그림자 없는데?' 뒤 흑백·밤에도 진하게, uShS 1)
   finalColor = vec4(o, 1.0); }`;
   const glProgram = P.GlProgram.from({ vertex, fragment });
   const U = new P.UniformGroup({ uHasWarm: { value: 0, type: 'f32' }, uWarmK: { value: new Float32Array([1, 1]), type: 'vec2<f32>' }, uOp: { value: 1, type: 'f32' }, uFull: { value: -1, type: 'f32' },
@@ -2204,7 +2204,6 @@ void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152
   const follow = () => pxFollow(V.el, world);   // 카메라(setCam이 쓴 transform)를 따라감
   const tick = () => { const m = follow(), u = U.uniforms, s = col.style; let sig = m;
     u.uOp = s.visibility === 'hidden' ? 0 : G.pxKicking ? u.uOp : +(getComputedStyle(col).opacity);
-    u.uShS = 1 - 0.3 * Math.min(1, (V.night || 0) / 0.42);   // 11/9 밤빛(mapfx NIGHT 0.42)이 짙을수록 그림자 옅게
     const mk = s.maskImage || s.webkitMaskImage; u.uFull = (V.colorFull != null || !mk || mk === 'none') ? 1 : -1;   // fullColor: 덮개 없이 col 투명도만
     zones().forEach((z, i) => { if (i >= NZ) return; const k = V.grow[z.id] ?? 1; u['uZ' + i] = new Float32Array([z.center[0], z.center[1], Math.max(1, z.r[0] * k), Math.max(1, z.r[1] * k)]); u['uA' + i] = V.alpha[z.id] || 0; sig += '|' + u['uA' + i] + ',' + u['uZ' + i][2]; }); return sig + '|' + u.uOp + '|' + u.uFull; };   // 달라지면 그림
   (async () => { if (wk) { pend++; try { warm = await G.pxGet(G.asset(wk[0])); if (gone) return;

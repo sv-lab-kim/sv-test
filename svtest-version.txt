@@ -1,4 +1,5 @@
 시험판(학생용 아님)
+11/9 05:10 그림자 고침(source 73ac59a2): 처음 지도에도 그늘, 흑백·밤에도 옅게 하지 않음, 캐시 starvillage-5e12e1e2
 원본: 그림자 가지 claude/project-thread-2ivaf2 a9a29d91 + 메뉴 감사 가지 improvement/star-village-audit-0f87a160 029d9464 (둘 다 main 4d7207ac 위), 캐시 starvillage-ee4a5e34
 그림자 시험판 19e34d1 위에 타이틀 메뉴(아래 가운데 유리 버튼·새 이름·버튼 목소리 2)만 얹음: game.js 안 title.js, index.html 안 style.css, data.js 대사 2줄·그림 목록 1줄, 새 그림 btn_glass.webp, 목소리 2개, sw.js
 학생 웹 판: e25ca1c (starvillage-0884f903)
