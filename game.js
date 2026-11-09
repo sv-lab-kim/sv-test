@@ -16514,6 +16514,8 @@ void main(){ vec2 d = gl_PointCoord * 2.0 - 1.0; float r = length(d); vec3 c; fl
     };
     const api = { cv, dispose, info: () => ({ mode, frames: nF, lite, dpr, w: cv.width, h: cv.height, dive }),
       dive: () => { if (!diving && mode === 'live' && !G.reduced()) diving = nowT || 0.001; },
+      // 11/9 메뉴 버튼을 누르면 그 자리에서 별빛이 퍼짐. 늘 있는 별빛 묶음(POOL)을 돌려 써서 여러 번 눌러도 쌓이지 않음
+      spark: (el) => { if (mode !== 'live' || G.reduced() || !el) return; const r = el.getBoundingClientRect(); const [x, y] = toPic({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }); burst(x, y, 0.5, 22, 170, 14, nowT); },
       cam: () => [cx, cy] };
     G.titleGL.cur = api;
     fit();
@@ -16567,17 +16569,20 @@ G.titleBook = (ov, onStart) => {
   const reveal = (b, T) => { if (b.broken) return; const w = b.cv.width, h = b.cv.height; b.c.clearRect(0, 0, w, h); b.c.save(); b.c.beginPath(); b.c.rect(0, 0, w * Math.min(1, T), h); b.c.clip(); b.c.drawImage(b.ink, 0, 0, w, h); b.c.restore(); };
   const showAll = (b) => prep(b).then(() => b.full ? b.c.putImageData(b.full, 0, 0) : reveal(b, 1));
   const openB = G.btn('pill gold tb-open', G.icon('icon_star') + ' 책 펴기', t, () => open(), '책 펴기');
-  // 11/8 선생님(타이틀 입체): [시작하기] 한 개 대신 왼쪽 아래 세로 메뉴 시작하기 · 이어 하기 · 설정. 고르거나 손을 올린 줄 앞에 작은 별
-  G.el('div', 't-mshade', t);
+  // 11/9 선생님(메뉴 결정판 titlemenu2): 아래 가운데 세로 메뉴 새로운 이야기 · 이어서 여행하기 · 설정, 밤하늘 유리 버튼(제미나이 그림 한 장을 세 버튼이 같이 씀)
   const menu = G.el('nav', 't-menu', t); menu.setAttribute('aria-label', '처음 메뉴');
+  const btnUrl = G.asset('assets/ui/' + 'title_depth/btn_glass.webp');
+  menu.style.setProperty('--tmbtn', 'url("' + btnUrl + '")');
+  { const bi = new Image(); bi.decoding = 'async'; bi.src = btnUrl; }   // 책을 펴는 동안 미리 받아 둠(메뉴가 뜰 때 빈 버튼이 안 보이게)
   let anySave = false; try { for (let i = 1, n = G.save.count(); i <= n; i++) if (G.save.load(i)) { anySave = true; break; } } catch (e) { }
   let going = false;
   const go = (mode) => { if (!t.classList.contains('done') || going) return; going = true;
     if (G.titleGL.cur) G.titleGL.cur.dive(); t.classList.add('diving');   // 그림 속으로 들어가는 동안 저장 책 안내 목소리가 나옴
     onStart(mode); };
-  const item = (cls, label, fn, aria) => G.btn('t-mi ' + cls, label, menu, () => fn(), aria || label);
-  const startB = item('t-start', '시작하기', () => go('new'));
-  const contB = item('t-cont', '이어 하기', () => go(anySave ? 'cont' : 'new'), anySave ? '이어 하기' : '이어 하기 (아직 저장된 게임이 없어요)');
+  const spark = (b) => { if (G.titleGL.cur && G.titleGL.cur.spark) G.titleGL.cur.spark(b); };
+  const item = (cls, label, fn, aria) => { const b = G.btn('t-mi ' + cls, label, menu, () => { if (t.classList.contains('done') && !going) spark(b); fn(); }, aria || label); return b; };
+  const startB = item('t-start', '새로운 이야기', () => go('new'));
+  const contB = item('t-cont', '이어서 여행하기', () => go(anySave ? 'cont' : 'new'), anySave ? '이어서 여행하기' : '이어서 여행하기 (아직 저장된 게임이 없어요)');
   if (!anySave) contB.classList.add('off');
   const setB = item('t-set', '설정', () => { if (t.classList.contains('done')) settings(); });
   menu.addEventListener('keydown', (e) => { if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return; e.preventDefault();

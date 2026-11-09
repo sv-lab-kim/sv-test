@@ -1,5 +1,5 @@
 시험판(학생용 아님)
-원본: star-village-source claude/project-thread-2ivaf2 a9a29d91 (main 4d7207ac 위) 물건 그림자(지도·장소 19곳 그늘 그림, 장소 앞 사람 발 그림자), 캐시 starvillage-4a0606d6
-그림 파일은 학생 웹 e25ca1c 것 그대로(점 하나도 같은 것), 새 그늘 그림 11개와 data.js·game.js·sw.js·index.html만 바꿈
+원본: 그림자 가지 claude/project-thread-2ivaf2 a9a29d91 + 메뉴 감사 가지 improvement/star-village-audit-0f87a160 029d9464 (둘 다 main 4d7207ac 위), 캐시 starvillage-ee4a5e34
+그림자 시험판 19e34d1 위에 타이틀 메뉴(아래 가운데 유리 버튼·새 이름·버튼 목소리 2)만 얹음: game.js 안 title.js, index.html 안 style.css, data.js 대사 2줄·그림 목록 1줄, 새 그림 btn_glass.webp, 목소리 2개, sw.js
 학생 웹 판: e25ca1c (starvillage-0884f903)
-이전 시험판: 3ce39c6 (타이틀 입체)
+이전 시험판: 19e34d1 (물건 그림자)
