@@ -1315,7 +1315,7 @@ G.mapView = (parent, o = {}) => {
   const mono = T ? G.mapTiles(V, T, DW ? 'color' : 'mono', 'bg map-mono') : G.el('img', 'bg', V.imgs), col = V.colorImg = T ? G.mapTiles(V, T, 'color', 'bg map-color') : G.el('img', 'bg map-color', V.imgs);
   if (!T) { mono.src = G.asset(M.mono); mono.width = V.W; mono.height = V.H; mono.alt = ''; col.src = G.asset(M.color); col.width = V.W; col.height = V.H; col.alt = ''; }
   // 10/29 PixiJS(pxscene.js G.pxMap): 조각 그림을 PixiJS가 그림(밤빛은 모든 기기, 결정 d3). 조각 묶음은 켜짐·투명도·덮개만 전함
-  V.px = o.px && T && G.pxMap ? G.pxMap(V, T, /map2_mono_h_t$/.test(T.mono || '') ? T.mono.replace(/map2_mono_h_t$/, 'map2_warm.png') : null, mono, col, () => MOOD.zones) : null;
+  V.px = o.px && T && G.pxMap ? G.pxMap(V, T, /map2_mono_h_t$/.test(T.mono || '') ? T.mono.replace(/map2_mono_h_t$/, 'map2_warm.png') : null, mono, col, () => MOOD.zones, M.shade) : null;   // 11/9 M.shade = 물건 그늘
   V.pxw = !!V.px && !!G.pxwOn && G.pxwOn('map');   // 10/29 엔진 결정: 별 1 지도는 걷는 사람·밤빛·불빛·나무까지 PixiJS(pxscene.js pxMapWorld)
   if (DW && !V.px) { const wt = G.mapTiles(V, T, 'color', ''); const n0 = mono.need; mono.need = (i, on, now) => { n0(i, on, now); wt.need(i, on, now); }; G.dusk(mono, V.W, V.H, G.asset(DW), wt); }
   V.fx = G.el('div', 'layer', el);        // 불빛, 표시, 인물 (위치는 지도 px)
@@ -2004,9 +2004,11 @@ const pxMapWorld = (V, X, root) => {
     const gc = gs && gs.display !== 'none' && [...(gs.background || '').matchAll(/rgba?\((\d+),\s*(\d+),\s*(\d+)/g)];
     if (gc && gc.length >= 3) { K.rect(m.gt, bx, by, cw * s, ch * s); const c0 = m.gt.u.uC0, c1 = m.gt.u.uC1; for (let i = 0; i < 3; i++) { c0[i] = gc[0][i + 1] / 255; c1[i] = gc[2][i + 1] / 255; } m.gt.u.uFx[3] = 2; m.gt.zIndex = key + .6; } else m.gt.visible = false; };
   const npc = (e, r, key) => { const s = e.style, a = s.cssText + e.src + e.naturalWidth + '|' + key; if (!r.m) r.m = K.mkItem(sorted);
-    if (a === r.k) return; r.k = a; sig++; const m = r.m, t = K.tex(e.src, true), nw = e.naturalWidth, nh = e.naturalHeight; m.visible = !!t && !!nw && s.display !== 'none' && s.visibility !== 'hidden'; if (!m.visible) return;
+    if (a === r.k) return; r.k = a; sig++; const m = r.m, t = K.tex(e.src, true), nw = e.naturalWidth, nh = e.naturalHeight; m.visible = !!t && !!nw && s.display !== 'none' && s.visibility !== 'hidden'; if (r.sh) r.sh.visible = false; if (!m.visible) return;
     const L = pxNum(s.left), T = pxNum(s.top), w = pxNum(s.width), h = pxNum(s.height), q = Math.min(w / nw, h / nh), dw = nw * q, dh = nh * q, ag = pxNum(s.scale, 1);   // object-fit contain, 아래 가운데
-    const cx = L + w / 2, by = T + h; K.setTex(m, t); K.rect(m, cx - dw * ag / 2, by - dh * ag, dw * ag, dh * ag); m.u.uFx[0] = s.opacity === '' ? 1 : +s.opacity; m.zIndex = key; };
+    const cx = L + w / 2, by = T + h; K.setTex(m, t); K.rect(m, cx - dw * ag / 2, by - dh * ag, dw * ag, dh * ag); m.u.uFx[0] = s.opacity === '' ? 1 : +s.opacity; m.zIndex = key;
+    // 11/9 장소 앞 사람 발 그림자(그림자 결정판): 걷는 사람과 같은 둥근 그림자 텍스처 하나를 같이 씀, 사람 바로 아래
+    if (!r.sh) r.sh = K.mkItem(sorted); const g = r.sh, gw = dw * ag * .62, gh = Math.max(6, gw * .3); K.setTex(g, shT()); K.rect(g, cx - gw / 2, by - gh * .55, gw, gh); g.u.uFx[0] = m.u.uFx[0]; g.visible = true; g.zIndex = key - .5; };
   const fountain = (e, r, key) => { if (!r.s) { r.t = canvasTex(e); r.s = new P.Sprite(r.t); sorted.addChild(r.s); } const s = e.style, x = pxNum(s.left), y = pxNum(s.top), w = pxNum(s.width), h = pxNum(s.height);
     r.s.position.set(x, y); r.s.width = w; r.s.height = h; r.s.zIndex = key; r.s.visible = !V.inCam || V.inCam(x + w / 2, y + h / 2, 200); if (r.s.visible) { r.t.source.update(); sig++; } };
   const hfx = (e, r, key) => { if (!r.s) { r.s = new P.Sprite(dotT()); r.s.anchor.set(0.5); r.s.tint = 0x3c2d28; sorted.addChild(r.s); } const t = pxTf(e.style.transform);
@@ -2020,7 +2022,7 @@ const pxMapWorld = (V, X, root) => {
       if (kind === 'w') { const w = wOf.get(e); if (w) walker(w, r, key); }
       else if (kind === 'l') { r.L.s.zIndex = key; if (r.L.sync(now, lt, light, 1)) sig++; }
       else if (kind === 'n') npc(e, r, key); else if (kind === 'f') fountain(e, r, key); else hfx(e, r, key); }
-    for (const [e, r] of recs) if (r.p !== pass) { if (r.m) for (const m of r.m.u ? [r.m] : Object.values(r.m)) m.destroy(); if (r.s) r.s.destroy(); if (r.t) r.t.destroy(true); if (r.L) r.L.s.destroy(); recs.delete(e); } };
+    for (const [e, r] of recs) if (r.p !== pass) { if (r.m) for (const m of r.m.u ? [r.m] : Object.values(r.m)) m.destroy(); if (r.s) r.s.destroy(); if (r.sh) r.sh.destroy(); if (r.t) r.t.destroy(true); if (r.L) r.L.s.destroy(); recs.delete(e); } };
   const tick = () => { const now = performance.now(), dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
     const run = !document.hidden && !(U && U.classList.contains('pause')); if (run) clock += dt;
     if (!K.hasDepth() && V.depth) K.depth();
@@ -2031,7 +2033,7 @@ const pxMapWorld = (V, X, root) => {
   return { dispose };
 };
 // 장면에 PixiJS 바탕을 붙임. 쓰면 { ready, blit, snapshot, reveal, dispose, col } 아니면 null
-G.pxScene = (V, colSrc, warmSrc) => {
+G.pxScene = (V, colSrc, warmSrc, _, shadeSrc) => {   // 11/9 shadeSrc: 물건 그늘 그림(도구/월드/새방식/shadow_bake.py, 장면 1/4 흑백 = 밝기 곱하기)
   const X = G.px, K = window.KTX || {}; if (!X || !K[colSrc]) return null;
   const { P, app, cv } = X, W = V.W, H = V.H, [cUrl, cw, ch, ow = W, oh = H] = K[colSrc], wk = warmSrc && K[warmSrc];   // 늘린 크기 cw·ch, 원래 크기 ow·oh
   { const gl = app.renderer && app.renderer.gl, mx = gl ? gl.getParameter(gl.MAX_TEXTURE_SIZE) : 0; if (mx && Math.max(cw, ch) > mx) return null; }   // 11/7 갈대밭(4800 넓이): 큰 그림을 못 올리는 옛 기기는 지금 방식(DOM)으로
@@ -2040,14 +2042,16 @@ G.pxScene = (V, colSrc, warmSrc) => {
 uniform mat3 uProjectionMatrix; uniform mat3 uWorldTransformMatrix; uniform mat3 uTransformMatrix;
 void main(){ mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix; gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0); vUV = aUV; vP = aPosition; }`;
   const fragment = `in vec2 vUV; in vec2 vP; out vec4 finalColor;
-uniform sampler2D uTex; uniform sampler2D uWarm; uniform float uCol; uniform float uHasWarm; uniform vec2 uWarmK; ${RN.map((i) => `uniform vec4 uR${i};`).join(' ')}   // uWarmK: 장면 좌표 → 불빛 그림 좌표
+uniform sampler2D uTex; uniform sampler2D uWarm; uniform sampler2D uShade; uniform float uCol; uniform float uHasWarm; uniform vec2 uWarmK; uniform float uShOn; uniform vec2 uShK; ${RN.map((i) => `uniform vec4 uR${i};`).join(' ')}   // uWarmK: 장면 좌표 → 불빛 그림 좌표, uShK: 장면 좌표 → 그늘 그림 좌표
 void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152, .0722));
   vec3 v = min(vec3(1.0), (vec3(g) + (c - vec3(g)) * .4) * 1.0488) * vec3(197.0/255.0, 212.0/255.0, 1.0);
   v = 1.0 - (1.0 - v) * (251.0/255.0);
   if (uHasWarm > .5) v = mix(v, c, texture(uWarm, vP * uWarmK).a);
   float a = uCol;
   ${RN.map((i) => `if (uR${i}.w > 0.0) a = max(a, uR${i}.w * (1.0 - smoothstep(.45, 1.0, distance(vP, uR${i}.xy) / uR${i}.z)));`).join('\n  ')}
-  finalColor = vec4(mix(v, c, clamp(a, 0.0, 1.0)), 1.0); }`;
+  a = clamp(a, 0.0, 1.0); vec3 o = mix(v, c, a);
+  if (uShOn > .5) o *= mix(1.0, texture(uShade, vP * uShK).r, .75 + .25 * a);   // 11/9 물건 그림자(색 되찾기 전 저녁빛에서는 옅게)
+  finalColor = vec4(o, 1.0); }`;
   // 바탕 그림 이름은 uTex: PixiJS Mesh가 uColor(물들이기 색)를 따로 써서 겹치면 매 장면 오류
   let mesh = null, tc = null, tw = null, gone = false, tick = null, col = null, wd = null;   // col: 장면의 빈 색 img(투명도만 읽음), wd: 세상 판(pxWorld)
   // 10/29 엔진 결정: 장면 한 판(root)이 카메라를 따라감. 맨 아래 바탕 그림, 그 위에 세상 판(인물·불빛·나무, G.PXW 장소만)
@@ -2070,8 +2074,8 @@ void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152
   const paint = () => { if (gone || !cur.c) return;
     const c = cur.c.t, w = cur.w && cur.w.t;
     if (!mesh) {
-      shader = P.Shader.from({ gl: { vertex, fragment }, resources: { uTex: c.source, uWarm: (w || c).source,
-        pxU: { uCol: { value: 1, type: 'f32' }, uHasWarm: { value: w ? 1 : 0, type: 'f32' }, uWarmK: { value: new Float32Array(warmK()), type: 'vec2<f32>' }, ...Object.fromEntries(RN.map((i) => ['uR' + i, { value: new Float32Array(4), type: 'vec4<f32>' }])) } } });
+      shader = P.Shader.from({ gl: { vertex, fragment }, resources: { uTex: c.source, uWarm: (w || c).source, uShade: (shd.t || c).source,
+        pxU: { uCol: { value: 1, type: 'f32' }, uHasWarm: { value: w ? 1 : 0, type: 'f32' }, uWarmK: { value: new Float32Array(warmK()), type: 'vec2<f32>' }, uShOn: { value: shd.t ? 1 : 0, type: 'f32' }, uShK: { value: new Float32Array([1 / W, 1 / H]), type: 'vec2<f32>' }, ...Object.fromEntries(RN.map((i) => ['uR' + i, { value: new Float32Array(4), type: 'vec4<f32>' }])) } } });
       geo.getBuffer('aUV').data = new Float32Array(uvOf(cur.c.k));
       mesh = new P.Mesh({ geometry: geo, shader }); root.addChildAt(mesh, 0);   // 세상 판보다 늘 아래
       tick = () => { const m = follow(), u = shader.resources.pxU.uniforms; if (V.pxFade) root.alpha = +(V.pxFade.style.opacity || 1);   /* 10/31 도착 연출: 연출 겹이 흐려지고 짙어지는 것을 따라감 */ u.uCol = G.pxKicking ? u.uCol : amt();   /* setCam 자리에서는 지난 값(모양 계산을 억지로 안 시킴) */ return m + '|' + u.uCol + '|' + root.alpha + '|' + revealTick(u); };   // 달라지면 그림
@@ -2093,6 +2097,9 @@ void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152
     return () => clearTimeout(tm);
   };
   const stops = [slot('c', G.asset(cUrl), G.asset(colSrc), colSrc, () => full0())]; if (wk) stops.push(slot('w', G.asset(wk[0]), G.asset(warmSrc), warmSrc));
+  // 11/9 그늘 그림(작은 흑백 PNG, 장면마다 하나·광장 여러 벌은 같은 그림): 오면 판에 얹음. 못 받으면 그림자 없이 그대로(바탕은 안 기다림)
+  const shd = { t: null };
+  if (shadeSrc) { const u = G.asset(shadeSrc); take(u).then((t) => { if (gone || !t) return; shd.t = t; if (shader) { shader.resources.uShade = t.source; shader.resources.pxU.uniforms.uShOn = 1; G.pxDirty = true; } }, (e) => console.warn('PixiJS 그늘 그림 못 읽음', shadeSrc, e && e.message)); }
   // 장면을 여는 쪽(scene.js Sc.enter, 연출)은 바탕이 처음 그려질 때까지, 최대 pxLim 두 배만 기다림. 늦은 바탕은 오는 대로 그림
   const ready = pxLate(drawn, pxLim() * 2, '장면 바탕 ' + colSrc).catch(() => { });
   // 색 되찾기 동그라미 (DOM 판의 radial-gradient 원 R, #000 45% → 투명 100% 와 같은 모양), anim이면 1.8초에 걸쳐 진해짐
@@ -2111,7 +2118,7 @@ void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152
   // 장면을 떠날 때 지도와 겹쳐 사라지는 사본(scene.js)에 넣을 지금 화면 그림
   const snapshot = () => { if (!mesh) return null; app.render(); const c = app.renderer.extract.canvas({ target: app.stage, frame: new P.Rectangle(0, 0, app.screen.width, app.screen.height) }); return c; };
   const dispose = () => { gone = true; stops.forEach((f) => f()); full0(); if (wd) { wd.dispose(); wd = null; } if (tick) G.pxTick.remove(tick); if (mesh) { mesh.destroy(); mesh = null; } if (shader) shader.destroy(); root.destroy(); geo.destroy(); if (cpu) { cpu.onload = null; cpu.removeAttribute('src'); cpu = null; }
-    held.forEach(G.pxPut); held.length = 0; cur.c = cur.w = null; shader = null;   // 그래픽 칩 메모리를 놓음(지금 그리는 그림·아직 오는 중인 그림 모두)
+    held.forEach(G.pxPut); held.length = 0; cur.c = cur.w = null; shd.t = null; shader = null;   // 그래픽 칩 메모리를 놓음(지금 그리는 그림·아직 오는 중인 그림 모두)
     tc = tw = null; G.pxDirty = true; if (!app.stage.children.length) cv.style.display = 'none'; };
   const world = () => { if (!gone && !wd) wd = pxWorld(V, X, root); };   // scene.js: V.pxw 장소면 sceneView 끝에서
   return { ready, full, blit, snapshot, reveal, dispose, world, col: (e) => { col = e; }, busy: () => !gone && !mesh };
@@ -2121,7 +2128,7 @@ void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152
 //  색 번짐 구역(타원, mapview applyMask·colorAlphaAt과 같은 모양)·색 다 덮기(fullColor)·밤빛·불빛을 조각 그림을 그리며 한 번에 계산
 //  mono·col 조각 묶음(div)은 그대로 두되 그림은 안 받음. 가림 조각(rgDraw → G.mapBlit)은 d.pxBlit로 조각 그림 사본에서
 const pxGot = new Set();   // 미리 받은 압축 조각 주소(한 번만)
-G.pxMap = (V, T, warmSrc, mono, col, zones) => {
+G.pxMap = (V, T, warmSrc, mono, col, zones, shadeSrc) => {   // 11/9 shadeSrc: 지도 물건 그늘(지도 전체 1/8 흑백, shadow_bake.py)
   const X = G.px, K = window.KTX || {}; if (!X || !T || !K[T.color + '00' + T.ext]) return null;
   const { P, app, cv } = X, W = V.W, H = V.H, NZ = 8, ZN = [...Array(NZ).keys()], wk = warmSrc && K[warmSrc];
   const vertex = `in vec2 aPosition; in vec2 aUV; out vec2 vUV; out vec2 vP;
@@ -2130,6 +2137,7 @@ void main(){ mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMa
   // 구역 하나: t = 타원 거리, 0~0.42 a, 0.72 a*0.55, 1 에서 0 (CSS radial-gradient와 같음). 여러 구역은 1-(1-a)(1-b)로 합침
   const fragment = `in vec2 vUV; in vec2 vP; out vec4 finalColor;
 uniform sampler2D uTex; uniform sampler2D uWarm; uniform float uHasWarm; uniform vec2 uWarmK; uniform float uOp; uniform float uFull;
+uniform sampler2D uShade; uniform float uShOn; uniform vec2 uShK; uniform float uShS;
 ${ZN.map((i) => `uniform vec4 uZ${i}; uniform float uA${i};`).join(' ')}
 float zone(vec4 z, float a){ if (a < .003) return 0.0; float t = length((vP - z.xy) / z.zw);
   return t <= .42 ? a : t <= .72 ? mix(a, a * .55, (t - .42) / .3) : t < 1.0 ? a * .55 * (1.0 - (t - .72) / .28) : 0.0; }
@@ -2138,12 +2146,15 @@ void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152
   v = 1.0 - (1.0 - v) * (251.0/255.0);
   if (uHasWarm > .5) v = mix(v, c, texture(uWarm, vP * uWarmK).a);
   float a; if (uFull >= 0.0) a = uFull; else { float keep = 1.0; ${ZN.map((i) => `keep *= 1.0 - zone(uZ${i}, uA${i});`).join(' ')} a = 1.0 - keep; }
-  finalColor = vec4(mix(v, c, clamp(a * uOp, 0.0, 1.0)), 1.0); }`;
+  a = clamp(a * uOp, 0.0, 1.0); vec3 o = mix(v, c, a);
+  if (uShOn > .5) o *= mix(1.0, texture(uShade, vP * uShK).r, uShS * (.75 + .25 * a));   // 11/9 물건 그림자(저녁빛·밤에는 옅게)
+  finalColor = vec4(o, 1.0); }`;
   const glProgram = P.GlProgram.from({ vertex, fragment });
   const U = new P.UniformGroup({ uHasWarm: { value: 0, type: 'f32' }, uWarmK: { value: new Float32Array([1, 1]), type: 'vec2<f32>' }, uOp: { value: 1, type: 'f32' }, uFull: { value: -1, type: 'f32' },
+    uShOn: { value: 0, type: 'f32' }, uShK: { value: new Float32Array([1 / W, 1 / H]), type: 'vec2<f32>' }, uShS: { value: 1, type: 'f32' },
     ...Object.fromEntries(ZN.flatMap((i) => [['uZ' + i, { value: new Float32Array([0, 0, 1, 1]), type: 'vec4<f32>' }], ['uA' + i, { value: 0, type: 'f32' }]])) });
   const world = new P.Container(), tl = new P.Container(); world.addChild(tl); app.stage.addChild(world);   // tl: 조각 그림(늘 세상 판 아래)
-  let warm = null, gone = false, pend = 0, waiters = [];
+  let warm = null, shade = null, gone = false, pend = 0, waiters = [];
   const box = { on: [], tex: [], mesh: [], tm: [], cpu: [], rt: [], rn: [] };   // rt·rn: 실패한 조각 다시 받기 타이머·횟수(11/5 W-02)   // 조각마다: 켜짐, 그림, 그리는 판, 끄기 타이머, 가림용 원래 그림
   const n = T.cols * T.rows, want = (i) => !!(mono.tiles[i].on || col.tiles[i].on);
   const settle = () => { if (pend) return; const w = waiters; waiters = []; w.forEach((f) => f()); };
@@ -2155,7 +2166,7 @@ void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152
       if (gone || !want(i) || box.mesh[i] || !tex) return;
       const u0 = .5 / pw, v0 = .5 / ph, u1 = (ow - .5) / pw, v1 = (oh - .5) / ph;   // 가장자리 반 점 안쪽까지만: 조각 사이에 늘린 칸·옆 점이 섞여 줄이 생기지 않게
       const geo = new P.Geometry({ attributes: { aPosition: [t.x, t.y, t.x + t.w, t.y, t.x + t.w, t.y + t.h, t.x, t.y + t.h], aUV: [u0, v0, u1, v0, u1, v1, u0, v1] }, indexBuffer: [0, 1, 2, 0, 2, 3] });
-      const m = new P.Mesh({ geometry: geo, shader: new P.Shader({ glProgram, resources: { mapU: U, uTex: tex.source, uWarm: (warm || tex).source } }) });
+      const m = new P.Mesh({ geometry: geo, shader: new P.Shader({ glProgram, resources: { mapU: U, uTex: tex.source, uWarm: (warm || tex).source, uShade: (shade || tex).source } }) });
       m.pxGeo = geo; box.tex[i] = { tex, url, ow, oh }; held = false; box.rn[i] = 0; box.mesh[i] = m; tl.addChild(m); G.pxDirty = true; mono.ver = ++col.ver;   // ver: 가림 조각이 새 그림으로 다시 그리게
     } catch (e) { console.warn('PixiJS 지도 조각 못 읽음', i, e);
       // 11/5 W-02: 2초·5초·10초 뒤 세 번 다시 받아 봄(그 뒤에는 조각이 다시 보일 때 need가 부름). 기다리는 동안 화면은 막지 않음(pend에 안 셈)
@@ -2193,15 +2204,18 @@ void main(){ vec3 c = texture(uTex, vUV).rgb; float g = dot(c, vec3(.2126, .7152
   const follow = () => pxFollow(V.el, world);   // 카메라(setCam이 쓴 transform)를 따라감
   const tick = () => { const m = follow(), u = U.uniforms, s = col.style; let sig = m;
     u.uOp = s.visibility === 'hidden' ? 0 : G.pxKicking ? u.uOp : +(getComputedStyle(col).opacity);
+    u.uShS = 1 - 0.3 * Math.min(1, (V.night || 0) / 0.42);   // 11/9 밤빛(mapfx NIGHT 0.42)이 짙을수록 그림자 옅게
     const mk = s.maskImage || s.webkitMaskImage; u.uFull = (V.colorFull != null || !mk || mk === 'none') ? 1 : -1;   // fullColor: 덮개 없이 col 투명도만
     zones().forEach((z, i) => { if (i >= NZ) return; const k = V.grow[z.id] ?? 1; u['uZ' + i] = new Float32Array([z.center[0], z.center[1], Math.max(1, z.r[0] * k), Math.max(1, z.r[1] * k)]); u['uA' + i] = V.alpha[z.id] || 0; sig += '|' + u['uA' + i] + ',' + u['uZ' + i][2]; }); return sig + '|' + u.uOp + '|' + u.uFull; };   // 달라지면 그림
   (async () => { if (wk) { pend++; try { warm = await G.pxGet(G.asset(wk[0])); if (gone) return;
     U.uniforms.uHasWarm = 1; U.uniforms.uWarmK = new Float32Array([(wk[3] || wk[1]) / wk[1] / W, (wk[4] || wk[2]) / wk[2] / H]);
     for (const m of box.mesh) if (m) m.shader.resources.uWarm = warm.source; G.pxDirty = true; } catch (e) { console.warn('PixiJS 지도 불빛 그림 못 읽음', e); } finally { pend--; settle(); } } })();
+  // 11/9 그늘 그림: 오면 모든 조각 판에 얹음(못 받으면 그림자 없이). 지도를 여는 쪽은 기다리지 않음(pend에 안 셈)
+  if (shadeSrc) G.pxGet(G.asset(shadeSrc)).then((t) => { if (gone || !t) return; shade = t; U.uniforms.uShOn = 1; for (const m of box.mesh) if (m) m.shader.resources.uShade = t.source; G.pxDirty = true; }, (e) => console.warn('PixiJS 지도 그늘 그림 못 읽음', e && e.message));
   G.pxTick.add(tick); cv.style.display = '';
   const snapshot = () => { app.render(); return app.renderer.extract.canvas({ target: app.stage, frame: new P.Rectangle(0, 0, app.screen.width, app.screen.height) }); };
   let mw = null; const mworld = () => { if (!gone && !mw) mw = pxMapWorld(V, X, world); };   // mapview.js: 별 1 지도면 끝에서
-  const dispose = () => { gone = true; pre.forEach((ac) => ac.abort()); pre.clear(); if (mw) { mw.dispose(); mw = null; } G.pxTick.remove(tick); for (let i = 0; i < n; i++) { clearTimeout(box.tm[i]); clearTimeout(box.rt[i]); drop(i); } world.destroy(); if (warm) G.pxPut(G.asset(wk[0]));
+  const dispose = () => { gone = true; pre.forEach((ac) => ac.abort()); pre.clear(); if (mw) { mw.dispose(); mw = null; } G.pxTick.remove(tick); for (let i = 0; i < n; i++) { clearTimeout(box.tm[i]); clearTimeout(box.rt[i]); drop(i); } world.destroy(); if (warm) G.pxPut(G.asset(wk[0])); if (shadeSrc) G.pxPut(G.asset(shadeSrc)); shade = null;
     G.pxDirty = true; if (!app.stage.children.length) cv.style.display = 'none'; };
   return { snapshot, dispose, world: mworld, busy: () => pend > 0 };
 };
@@ -3663,10 +3677,16 @@ G.map = (() => {
     const fg = V && V.s2 && V.s2.fog, m = fg && /fog_([a-f])/.exec(fg.getAttribute('src') || '');
     return m ? 'abcdef'.indexOf(m[1]) : 0;
   }
+  // 11/8 탐험 ③ I09(결정판 plan/explore3_1108 T2): 걷기 칸 덮개. Mp.blocks = [{ r: [x, y, w, h](지도 자리), on: () => 참이면 막음 }]. 걷기 칸 그림은 다시 읽지 않음
+  Mp.blocks = [];
+  const blockList = () => { const k = FR && FR.mask; if (!k || !Mp.blocks.length) return null; const L = Mp.blocks.filter((b) => b.on()).map((b) => [Math.floor(b.r[0] / k.k), Math.floor(b.r[1] / k.k), Math.ceil((b.r[0] + b.r[2]) / k.k), Math.ceil((b.r[1] + b.r[3]) / k.k)]); return L.length ? L : null; };
+  const blocked = (L, cx, cy) => { for (const b of L) if (cx >= b[0] && cx < b[2] && cy >= b[1] && cy < b[3]) return true; return false; };
   function freeOk(x, y) {
     const k = FR.mask; if (!k) return false;
     const cx = Math.floor(x / k.k), cy = Math.floor(y / k.k); if (cx < 0 || cy < 0 || cx >= k.w || cy >= k.h) return false;
-    const v = k.m[cy * k.w + cx]; return v > 0 && v - 1 <= freeZone();
+    const v = k.m[cy * k.w + cx]; if (!(v > 0 && v - 1 <= freeZone())) return false;
+    for (const B of Mp.blocks) { const r = B.r; if (x >= r[0] && y >= r[1] && x < r[0] + r[2] && y < r[1] + r[3] && B.on()) return false; }   // 걸음마다 불러 새 배열을 만들지 않음
+    return true;
   }
   function freeStep(dt) {   // 10/24 선생님: 1~2초 걸으면 달리기로 부드럽게, 손을 떼면 천천히 느려지며 섬
     const f = FR, kv = f.kv(); let ix = kv ? kv[0] : f.vx, iy = kv ? kv[1] : f.vy, mag = Math.min(1, Math.hypot(ix, iy));
@@ -3718,6 +3738,7 @@ G.map = (() => {
     const t = L ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L)) : 0;
     return Math.hypot(px - (ax + dx * t), py - (ay + dy * t));
   }
+  Mp.freePath = (to, from) => FR ? freePath(to[0], to[1], from) : null;   // 11/8 탐험 ③: 지도 길 찾기(걸을 수 있는 칸, 덮개 반영)
   Mp.enterDist = enterDist; Mp.ENTER_R = ENTER_R; Mp.freeOk = (x, y) => !!FR && freeOk(x, y); Mp.freeV = () => FR ? Math.hypot(FR.cx || 0, FR.cy || 0) : 0;   // 시험: 지금 걷는 빠르기(px/초, 화면이 느려 걸음이 잘려도 같은 값)   // 시험(qa play-feel)에서 걸을 수 있는 곳 찾기   // 시험·결정판 그림용
   function freeNear() {   // 가까이 열린 장소가 있으면 [들어가기] (11/7: 걷는 중에도)
     if (G.$('#game').classList.contains('talking')) return;
@@ -3746,15 +3767,15 @@ G.map = (() => {
     return true;
   }
   // 10/26 선생님(클릭 이동이 건물을 뚫고 왔다갔다): 땅 누르기·장소 누르기 모두 이 길(걸을 수 있는 칸만, 곧게 갈 수 있는 곳은 곧게 이음)
-  function freePath(mx, my) {
-    const f = FR, k = f && f.mask; if (!k || !hero) return null;
-    const w = k.w, h = k.h, ok = (c) => { const v = k.m[c]; return v > 0 && v - 1 <= freeZone(); };
+  function freePath(mx, my, from) {   // from = [x, y] 시작 자리(없으면 주인공). 11/8: 미루·누리 길에도 씀
+    const f = FR, k = f && f.mask; if (!k || (!hero && !from)) return null;
+    const BL = blockList(), w = k.w, h = k.h, ok = (c) => { const v = k.m[c]; return v > 0 && v - 1 <= freeZone() && !(BL && blocked(BL, c % w, (c / w) | 0)); };
     const cell = (x, y) => Math.min(h - 1, Math.max(0, Math.floor(y / k.k))) * w + Math.min(w - 1, Math.max(0, Math.floor(x / k.k)));
     let goal = cell(mx, my);
     if (!ok(goal)) { const gx = goal % w, gy = (goal / w) | 0; let bd = 1e9, b = -1;
       for (let r = -30; r <= 30; r++) for (let q = -30; q <= 30; q++) { const x = gx + q, y = gy + r; if (x < 0 || y < 0 || x >= w || y >= h) continue; const c = y * w + x, d = q * q + r * r; if (d < bd && ok(c)) { bd = d; b = c; } }
       if (b < 0) return null; goal = b; }
-    const start = cell(hero.x, hero.y); if (!ok(start)) return null;
+    const start = from ? cell(from[0], from[1]) : cell(hero.x, hero.y); if (!ok(start)) return null;
     const prev = new Int32Array(w * h).fill(-1), Q = new Int32Array(w * h); let qh = 0, qt = 0; Q[qt++] = start; prev[start] = start;
     const D8 = [1, -1, w, -w, w + 1, w - 1, -w + 1, -w - 1];
     while (qh < qt) { const c = Q[qh++]; if (c === goal) break; const cx = c % w;
@@ -4361,7 +4382,7 @@ G.sceneView = (parent, id, o = {}) => {
   if (S.pixel) el.classList.add('pix');   // 10/15 선생님(픽셀 배경 통합): 픽셀 장면만 점 그대로(css .world.pix)
   const DW = G.duskOK && /_v2_px_mono\.png$/.test(S.image.mono) ? S.image.mono.replace(/_px_mono\.png$/, '_warm.png') : null, MONO = DW ? S.image.color : S.image.mono;   // 10/26 g3: 흑백 그림 대신 색 그림 + 저녁빛
   // 10/29 PixiJS(pxscene.js): 바탕은 아래 PixiJS 캔버스가 그림. mono·col은 그림 없는 빈 img로 남아 투명도·숨김(색 되찾기 연출이 바꿈)만 전함
-  const PX = V.px = o.px && G.pxScene ? G.pxScene(V, S.image.color, /_v2_px_mono\.png$/.test(S.image.mono) ? S.image.mono.replace(/_px_mono\.png$/, '_warm.png') : null, null) : null;
+  const PX = V.px = o.px && G.pxScene ? G.pxScene(V, S.image.color, /_v2_px_mono\.png$/.test(S.image.mono) ? S.image.mono.replace(/_px_mono\.png$/, '_warm.png') : null, null, S.image.shade) : null;   // 11/9 S.image.shade = 물건 그늘
   V.pxw = !!PX && !!G.pxwOn && G.pxwOn(id);   // 10/29 엔진 결정: 이 장소는 인물·불빛·나무·가림까지 PixiJS(pxscene.js pxWorld)
   const mono = V.monoImg = G.el('img', 'bg', el); mono.width = W; mono.height = H; mono.alt = '';
   const col = V.colorImg = G.el('img', 'bg', el); col.width = W; col.height = H; col.alt = ''; col.style.transition = 'opacity .8s';
@@ -7751,9 +7772,14 @@ G.p4 = (() => {
     const ls = def.sprites.find(s => s.lumi), L0 = ls ? ls.lumi : [1200, 700];
     const d = G.el('div', 'p4-dark', V.fx); d.style.width = V.W + 'px'; d.style.height = V.H + 'px';
     const L = { x: L0[0], y: L0[1] }, T = { x: L0[0], y: L0[1] };
+    // 11/8 탐험 ③ I03(결정판 plan/explore3_1108 G1·G2): 빛이 닿으면 드러나는 땅 위 흔적(장면 json dark.traces [x, y, 크기]). 본 자국은 희미하게 남음.
+    //  인물 판(V.chars, 어둠 아래)에 발 y 순서로 두어 인물이 밟고 서면 인물이 위. 장면을 떠나면 함께 지워짐
+    const TR = (D.traces || []).map(([x, y, s]) => { const e = G.el('div', 'p4-trace' + (G.reduced() ? ' still' : ''), V.chars || V.fx, G.artImg(D.traceArt || 'stardust', 'px') || ''); Object.assign(e.style, { left: x + 'px', top: y + 'px', zIndex: Math.round(y) - 40, transform: `translate(-50%,-50%) scale(${s || 1})`, opacity: 0 }); return { e, x, y, seen: 0, o: 0 }; });
+    const trace = () => { for (const t of TR) { const k = Math.max(0, Math.min(1, 1.6 - 1.6 * Math.hypot(t.x - L.x, t.y - L.y) / R)); if (k > 0.6) t.seen = 1; const o = Math.max(k, t.seen * 0.3); if (Math.abs(o - t.o) > 0.02) { t.o = o; t.e.style.opacity = o.toFixed(2); } } };
     const draw = () => {
       d.style.background = `radial-gradient(circle ${R}px at ${L.x.toFixed(0)}px ${L.y.toFixed(0)}px, rgba(6,8,24,0) 0%, rgba(6,8,24,0) 40%, rgba(6,8,24,${A}) 100%)`;
       if (V.lumi) V.lumi.style.transform = `translate(${(L.x - L0[0]).toFixed(0)}px,${(L.y - L0[1]).toFixed(0)}px)`;
+      if (TR.length) trace();
     };
     draw();
     const hb = def.hotspots.find(h => h.id === 'bushB'); if (hb) hb.hint = 'E90_hint_07';   // 어두울 때 도움 말
@@ -7771,7 +7797,7 @@ G.p4 = (() => {
     });
     lift = () => {
       off(); V.el.removeEventListener('pointerdown', mv); V.el.removeEventListener('pointermove', mv); lift = null;
-      G.tween(1, 0, G.reduced() ? 0.2 : 1.4, k => d.style.opacity = k, 'io').then(() => d.remove());
+      G.tween(1, 0, G.reduced() ? 0.2 : 1.4, k => { d.style.opacity = k; for (const t of TR) t.e.style.opacity = (t.o * k).toFixed(2); }, 'io').then(() => { d.remove(); for (const t of TR) t.e.remove(); TR.length = 0; });
       if (V.lumi) { V.lumi.style.transition = 'transform 1s'; V.lumi.style.transform = ''; }
     };
   }
@@ -12656,7 +12682,7 @@ G.s4 = (() => {
     G.audio.sfx('sfx_chime', 0.4);
     const rm = G.reduced(), rp = V.spr.ramp && V.spr.ramp.img;   // 11/1 선생님: 놓은 경사판이 전망대 계단 위 경사로 그림(픽셀랩)으로 실제로 놓임
     if (rp) { rp.style.display = ''; rp.style.opacity = 0; await G.tween(0, 1, rm ? 0.2 : 0.7, v => rp.style.opacity = v); if (!ok()) return false; rp.style.opacity = ''; }
-    // 산들 아저씨 발(1798,1311) → 경사로 아래 끝(1917,1080) → 위 끝 문 앞(2005,950): 길 → 경사로를 따라 걸어 올라감
+    // 산들 아저씨 발(1800,1060) → 경사로 아래 끝(1917,930) → 위 끝 문 앞(2005,800): 마당 → 경사로를 따라 걸어 올라감(11/8 별 4 언덕으로 마당이 150 올라감)
     // 11/1 선생님 '그림만 스르르 가면 안 됨': 픽셀랩 걷기(북동 8장)로 한 걸음씩 걸어 올라가 문으로 들어감
     const WF = [0, 1, 2, 3, 4, 5, 6, 7].map(i => G.asset(`assets/scenes/s4view_sandeul_w${i}.png`)), st0 = im.src, t0 = performance.now();
     await Promise.all(WF.map(u => new Promise(r => { const i = new Image(); i.onload = i.onerror = r; i.src = u; }))); if (!ok()) return false;
@@ -12672,9 +12698,9 @@ G.s4 = (() => {
     G.busy++;   // 걷는 동안은 다른 곳을 누르지 않게
     try {
       const nl = !home.hero || !home.nuri || home.nuri[0] <= home.hero[0], L = nl ? 'nuri' : 'hero', Rk = nl ? 'hero' : 'nuri';   // 서로 엇갈리지 않게 왼쪽에 있던 사람이 왼쪽으로
-      await Promise.all([mv(L, [1730, 1172], 1.4), mv(Rk, [2036, 1196], 1.3)]);
+      await Promise.all([mv(L, [1690, 950], 1.4), mv(Rk, [2036, 1046], 1.3)]);   // 11/8 별 4 언덕: 전망대 마당이 한 단 높아져 마당 위 자리로
       if (ok()) { V.stand && V.spr[L] && V.stand(L, 'NE', wk(L)); V.stand && V.spr[Rk] && V.stand(Rk, 'NW', wk(Rk)); }   // 비켜서서 아저씨 쪽을 봄
-      if (ok()) await leg(0, 0, 119, -231, 2.0); if (ok()) await leg(119, -231, 207, -361, 2.2); if (ok()) await leg(207, -361, 222, -385, 0.8, true);   // 마지막은 문 안으로
+      if (ok()) await leg(0, 0, 117, -130, 1.6); if (ok()) await leg(117, -130, 205, -260, 2.2); if (ok()) await leg(205, -260, 220, -284, 0.8, true);   // 마지막은 문 안으로(11/8 언덕: 마당 위에서 출발)
       if (ok()) await Promise.all([home.nuri && mv('nuri', home.nuri, 1.4), home.hero && mv('hero', home.hero, 1.2)]);
     } finally { G.busy = Math.max(0, G.busy - 1); gl.forEach(e => e.style.visibility = ''); } if (!ok()) return false;
     im.src = st0;
@@ -15306,6 +15332,303 @@ G.s6 = (() => {
   }
 })();
 
+/* ---- fogleak.js ---- */
+// fogleak.js — 11/8 탐험 2단계 ② 안개 너머 소리·빛 (I10, 결정판 plan/fogleak1108)
+//  별 N을 하는 동안 아직 안개에 덮인 다음 동네(별 N+1)에서 불빛이 은은히 비치고(F3 어디서나), 안개 가까이 가면 그 동네 소리가 새어 나옴(F2).
+//  소리는 가까울수록 크고 또렷(안개 너머라 멀면 먹먹 = 낮은 통과 거르개), 소리 나는 쪽 귀에서 더 크게(좌우). 음표 표시는 선생님이 뺌(F4 b).
+//  처음 들을 때 동네마다 한 번 루미 말칸(F5, 녹음된 SD04_rumi_05, 걷기 안 멈춤). 진행·저장에 영향 없음.
+//  14절: 지도 화면마다 DOM 1~3개 + G.every 하나(거리 계산은 0.25초에 한 번), 지도를 떠나면 멈추고 지움. 새 그림·새 소리 파일 없음.
+'use strict';
+(() => {
+  // 안개 그림 글자(a~f) = 열린 동네 끝 번호. 다음 별 = 글자 번호 + 2 (fog_b → 별 3 동네)
+  //  at = 불빛 자리(그 동네 장소 그림 쪽), src = 소리 자리, R = 들리는 거리(땅 위 거리, 세로 2배), every = 소리 사이 초, hit = [초, 소리, 크기, 높낮이]
+  const LEAK = {
+    3: { kind: 'dock', at: [5300, 3330], src: [5259, 3000], R: 760, every: 3.6, col: '255,214,120', hit: [[0, 'sfx_ibell', 0.55, 0.62], [0.55, 'sfx_ibell', 0.4, 0.62]] },
+    4: { kind: 'shop', at: [6330, 1560], src: [6273, 1719], R: 760, every: 2.8, col: '255,176,90', hit: [[0, 'sfx_tap', 0.7, 0.8], [0.32, 'sfx_tap', 0.6, 0.85], [0.64, 'sfx_tap', 0.7, 0.8]] },
+    5: { kind: 'stage', at: [3060, 760], src: [3150, 900], R: 760, every: 4.4, col: '255,150,215', hit: [[0, 'sfx_pipe', 0.5, 1], [0.7, 'sfx_pipe', 0.45, 1.19]] },
+    6: { kind: 'cross', at: [2050, 1330], src: [2223, 1389], R: 700, every: 2.4, col: '255,70,60', hit: [[0, 'sfx_ibell', 0.45, 1.35], [0.38, 'sfx_ibell', 0.45, 1.35]] },
+  };
+  const LINE = 'SD04_rumi_05';   // "응, 나도 들려! 어디서 나는 걸까?"
+  const heard = new Set();   // 이번 놀이에서 루미가 말한 동네(저장 안 함)
+  const done = (m) => !!(G.st && (G.st.done || []).includes(m));
+  let css = false;
+  function style() {
+    if (css) return; css = true;
+    const s = document.createElement('style');
+    s.textContent = '.fleak{position:absolute;pointer-events:none;border-radius:50%;margin:-110px 0 0 -110px;width:220px;height:220px;opacity:.7;mix-blend-mode:screen;'
+      + 'background:radial-gradient(rgba(var(--c),1) 0,rgba(var(--c),.6) 18%,rgba(var(--c),.18) 45%,rgba(var(--c),0) 70%);animation:fleak 3.2s ease-in-out infinite}'
+      + '.fleak.b{width:70px;height:70px;margin:-35px 0 0 -35px;opacity:.9;animation-duration:1.6s}.fleak.b2{animation-delay:-.8s}'
+      + '.fleak.still{animation:none}'
+      + '@keyframes fleak{0%,100%{opacity:.5;transform:scale(.9)}50%{opacity:.95;transform:scale(1.08)}}'
+      + '';
+    document.head.appendChild(s);
+  }
+
+  const mv0 = G.mapView;
+  G.mapView = (parent, o = {}) => { const V = mv0(parent, o); try { attach(V); } catch (e) { console.error(e); } return V; };
+
+  function attach(V) {
+    let cur = 0, els = [], t = 0, next = 0, q = [], seen = false;
+    const clear = () => { for (const e of els) e.remove(); els = []; q = []; cur = 0; };
+    const target = () => {   // 지금 새어 나올 동네 번호(없으면 0)
+      const fg = V.s2 && V.s2.fog; if (!fg || !fg.isConnected) return 0;
+      const m = /fog_([a-f])/.exec(fg.getAttribute('src') || ''); if (!m) return 0;
+      const n = 'abcdef'.indexOf(m[1]) + 2;
+      return LEAK[n] && !done('s' + n + '_begin') ? n : 0;
+    };
+    const show = (n) => {
+      clear(); cur = n; if (!n) return;
+      style(); const L = LEAK[n], still = G.reduced();
+      const mk = (cls, x, y) => { const e = G.el('div', 'fleak ' + cls + (still ? ' still' : ''), V.fx); e.style.setProperty('--c', L.col); Object.assign(e.style, { left: x + 'px', top: y + 'px', zIndex: 2 }); els.push(e); return e; };
+      mk('', L.at[0], L.at[1]);
+      if (L.kind === 'cross') { mk('b', L.at[0] - 22, L.at[1] - 40); mk('b b2', L.at[0] + 22, L.at[1] - 40); }   // 건널목 빨간 불 두 개가 번갈아
+    };
+    const calm = () => G.screen === 'map' && !G.busy && !G.paused && !G.$('#game').classList.contains('talking');
+    const stop = G.every((dt) => {
+      if (!V.el.isConnected) { if (seen || V.gone) { stop(); clear(); } return; }
+      seen = true; t += dt;
+      // 소리 묶음(망치 세 번 등) 이어서
+      while (q.length && q[0].at <= t) { const h = q.shift(); G.audio.sfx(h.n, h.v, h.r, h.fx); }
+      next -= dt; if (next > 0) return; next = 0.25;
+      const n = target(); if (n !== cur) show(n);
+      if (!n || q.length) return;
+      const L = LEAK[n], H = V.fxHero; if (!H || !calm()) return;
+      const dx = L.src[0] - H.x, dy = (L.src[1] - H.y) * 2, d = Math.hypot(dx, dy);
+      if (d > L.R) { L.wait = 0; return; }
+      L.wait = (L.wait || 0) - 0.25; if (L.wait > 0) return; L.wait = L.every;
+      const k = 1 - d / L.R, vol = 0.35 + 0.65 * k, fx = { lp: Math.round(450 + 4000 * k * k), pan: Math.max(-0.8, Math.min(0.8, dx / 600)) || 0.001 };
+      for (const [s, nm, v, r] of L.hit) q.push({ at: t + s, n: nm, v: v * vol, r, fx });
+      if (!heard.has(n)) { heard.add(n); G.hud.say(LINE); }
+    });
+  }
+  G.fogleak = { LEAK, heard };   // 시험용
+})();
+
+/* ---- explore3.js ---- */
+// explore3.js — 11/8 탐험 2단계 ③ (결정판 plan/explore3_1108). 별 1 숲 빛 흔적(I03)은 p4.js dark()에 있음
+//  I13 소리 따라 걷기: 별 2 쉼터를 끝내면 지도에서 미루가 작은 종을 울리며 광장 음악회까지 앞장섬(S1 a). 멀어지면 멈춰 종을 흔들며 기다림(S3 a)
+//   화면 구석 소리 막대 5칸 + 미루 머리 위 음표 물결(S2 a): 소리를 꺼도 같은 길을 찾음. 녹음된 줄만 씀(L1 a). 걷지 않아도 진행은 막히지 않음
+//  I09 지형으로 닿는 길(11/8 별 4 언덕 결정판 plan/s4terrain1108로 바꿈): 별 4 동네가 언덕(돌 축대 2단)이 되고 계단 세 곳(픽셀랩).
+//   주인공은 계단을 오르고(H6 a), 누리는 뒤를 따라오다 첫 계단(목공방 가는 아랫길) 앞에서 멈춤 → [누리 지도]를 누르면
+//   누리가 그린 흙 비탈길(H7 a)이 점선으로 빛나고 누리가 앞장섬(T3). 별 4를 끝내면 깨어남 때 계단 세 곳이 반은 경사로로(H4·H5 a)
+//  14절: 지도 화면마다 인물 1~2명 + 막대·단추·점선 DOM 몇 개 + 경사로 그림 3장(별 4 뒤) + G.every 하나(거리 계산은 0.25초에 한 번). 지도를 떠나면 멈추고 지움.
+//   새 소리 없음. 새 그림은 경사로 세 장(도구/월드/새방식/s4_hill_ramp_map.py, 지도에 보이는 점만)
+'use strict';
+(() => {
+  const done = (m) => !!(G.st && G.st.done.includes(m));
+  const mark = (m) => { if (G.st && !done(m)) { G.st.done.push(m); G.save.write(); } };
+  let css = false;
+  function style() {
+    if (css) return; css = true;
+    const s = document.createElement('style');
+    s.textContent = '.x3-bar{position:absolute;right:calc(var(--u)*34);top:calc(var(--u)*170);display:flex;align-items:center;gap:calc(var(--u)*12);padding:calc(var(--u)*12) calc(var(--u)*20);'
+      + 'background:rgba(255,248,232,.92);border-radius:calc(var(--u)*24);box-shadow:0 calc(var(--u)*4) 0 rgba(90,60,30,.25);font-family:var(--f-title);font-size:calc(var(--u)*30);color:var(--brown);pointer-events:none}'
+      + '.x3-bar .c{display:flex;align-items:flex-end;gap:calc(var(--u)*6);height:calc(var(--u)*46)}'
+      + '.x3-bar i{display:block;width:calc(var(--u)*14);border-radius:calc(var(--u)*4);background:#e2d6c2;border:calc(var(--u)*3) solid #b9a88f}'
+      + '.x3-bar i.on{background:#F2B544;border-color:#c98f14}'
+      + '.x3-bar.ring i.on{background:#FFD66B}'
+      + '.x3-mapbtn{position:absolute;transform:translate(-50%,-100%);display:flex;align-items:center;gap:8px;padding:8px 16px 8px 8px;border:0;border-radius:22px;background:#FFF4D6;box-shadow:0 0 0 4px #F2B544,0 0 22px rgba(255,214,107,.9);'
+      + 'font-family:var(--f-title);font-size:26px;color:var(--brown);cursor:pointer;animation:x3pulse 1.4s ease-in-out infinite}'
+      + '.x3-mapbtn img{width:52px;height:52px}'
+      + '@keyframes x3pulse{0%,100%{transform:translate(-50%,-100%) scale(1)}50%{transform:translate(-50%,-100%) scale(1.08)}}'
+      + '.x3-way polyline{fill:none;stroke:#FFE08A;stroke-width:10;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:4 22;filter:drop-shadow(0 0 6px rgba(255,200,80,.9))}'
+      + '@media (prefers-reduced-motion:reduce){.x3-mapbtn{animation:none}}';
+    document.head.appendChild(s);
+  }
+  // 소리 막대: k(0~1)만큼 칸이 참. 가까울수록 많이
+  function soundBar(label) {
+    style();
+    const e = G.el('div', 'x3-bar', G.$('#hud')); e.setAttribute('role', 'img');
+    G.el('span', '', e, label); const c = G.el('div', 'c', e);
+    const cells = [0, 1, 2, 3, 4].map((i) => { const b = G.el('i', '', c); b.style.height = `calc(var(--u)*${14 + i * 8})`; return b; });
+    let n = -1;
+    return {
+      e,
+      set(k) { const m = Math.max(0, Math.min(5, Math.round(k * 5))); if (m === n) return; n = m; cells.forEach((b, i) => b.classList.toggle('on', i < m)); e.setAttribute('aria-label', `${label} 크기 ${m}칸 / 5칸`); },
+      ring() { e.classList.add('ring'); setTimeout(() => e.classList.remove('ring'), 400); },
+      remove() { e.remove(); },
+    };
+  }
+  G.x3 = { soundBar };   // 누리 길(I09)도 씀
+
+  // ---- 지도 길잡이 인물: 길(점 배열)을 따라 몇 걸음씩 걷고, 주인공이 가까이 오면 다음 구간 ----
+  //  o = { leg: 한 번에 걷는 거리, wait: 주인공을 기다리는 거리, speed: px/초 }
+  function guide(V, id, path, o) {
+    const w = V.walker(`assets/chars/walk_${id}.png`, 'x3-guide');
+    const g = { w, path, i: 0, legLeft: o.leg, walking: true, u: 0, gone: false };
+    w.set(path[0][0], path[0][1]); w.frame = 8; w.draw();
+    g.remove = () => { if (g.gone) return; g.gone = true; w.el.remove(); const k = V.walkers.indexOf(w); if (k >= 0) V.walkers.splice(k, 1); };
+    g.end = () => g.i >= path.length - 1 && Math.hypot(path[path.length - 1][0] - w.x, path[path.length - 1][1] - w.y) < 4;
+    // 한 틱: 걸어야 하면 걸음. 반환 = 지금 걷는 중인지
+    g.step = (dt, H) => {
+      if (g.end()) { if (w.frame !== 8) { w.frame = 8; w.draw(); } return false; }
+      if (!g.walking) {
+        if (Math.hypot(H.x - w.x, H.y - w.y) < o.wait) { g.walking = true; g.legLeft = o.leg; }
+        else { if (w.frame !== 8) { w.frame = 8; w.face(H.x - w.x, H.y - w.y); w.draw(); } return false; }
+      }
+      let mv = o.speed * dt;
+      while (mv > 0 && g.i < path.length - 1) {
+        const q = path[g.i + 1], dx = q[0] - w.x, dy = q[1] - w.y, d = Math.hypot(dx, dy);
+        if (d < 1e-3) { g.i++; continue; }
+        const s = Math.min(mv, d, g.legLeft); w.face(dx, dy); w.set(w.x + dx / d * s, w.y + dy / d * s);
+        mv -= s; g.legLeft -= s; g.u += s / 94; if (s >= d - 1e-3) g.i++;
+        if (g.legLeft <= 0) { g.walking = false; break; }
+      }
+      w.frame = g.walking && !g.end() ? Math.floor(g.u * 8) % 8 : 8; w.draw();
+      return g.walking;
+    };
+    return g;
+  }
+  G.x3.guide = guide;
+  // 같은 사람이 지도에 둘 나오지 않게: 길잡이가 걷는 동안 그 사람의 장소 인물(map-npc, worldmap placeNpcs)을 숨김
+  const hideNpc = (V, id, hide) => { for (const e of V.fx.querySelectorAll('img.map-npc')) if (new RegExp('[/_]' + id + '[._]').test(e.getAttribute('src') || '')) e.style.display = hide ? 'none' : ''; };
+
+  // ================= I13 별 2: 미루의 종소리 길 =================
+  const BELL = { leg: 430, wait: 300, speed: 120, R: 1100, every: 2.6 };
+  const bellOn = () => done('s2rest_star') && !done('s2plaza_concert') && !done('s2plaza_intro') && !done('s2_bellwalk');
+  let miruSaid = false;
+  const mv0 = G.mapView;
+  G.mapView = (parent, o = {}) => { const V = mv0(parent, o); try { attach(V); } catch (e) { console.error(e); } return V; };
+
+  function attach(V) {
+    let seen = false, t = 0, next = 0, ringT = 1, M = null, bar = null, fin = false;
+    const clear = () => { if (M) { M.remove(); hideNpc(V, 'miru', false); } M = null; if (bar) bar.remove(); bar = null; };
+    const calm = () => G.screen === 'map' && !G.busy && !G.paused && !G.$('#game').classList.contains('talking');
+    const ring = (H) => {   // 종 한 번: 거리만큼 크고 또렷, 소리 나는 쪽 귀가 큼 + 음표 물결 + 막대 반짝
+      const w = M.w, dx = w.x - H.x, d = Math.hypot(dx, (w.y - H.y) * 2), k = Math.max(0, 1 - d / BELL.R);
+      if (k > 0) G.audio.sfx('sfx_ibell', 0.18 + 0.55 * k, 1.25, { lp: Math.round(700 + 4200 * k * k), pan: Math.max(-0.8, Math.min(0.8, dx / 600)) || 0.001 });
+      if (G.waveMark && w.el.style.visibility !== 'hidden') G.waveMark(V.fx, w.x, w.y - 150 * (w.age || 1), 1);
+      if (bar) bar.ring();
+    };
+    const start = (H) => {
+      const pl = G.D.places.nodes[G.map.node('plaza')]; if (!pl || !G.map.freePath) return false;
+      const path = G.map.freePath(pl); if (!path || !path.length) return false;
+      const p0 = [H.x, H.y], all = [p0, ...path];
+      // 미루는 주인공보다 조금 앞(길 위 120px)에서 시작
+      let s = 120, i = 0, x = p0[0], y = p0[1];
+      while (i < all.length - 1 && s > 0) { const q = all[i + 1], d = Math.hypot(q[0] - x, q[1] - y); if (d <= s) { s -= d; x = q[0]; y = q[1]; i++; } else { x += (q[0] - x) / d * s; y += (q[1] - y) / d * s; s = 0; } }
+      M = guide(V, 'miru', [[x, y], ...all.slice(i + 1)], BELL); M.walking = false; hideNpc(V, 'miru', true);
+      bar = soundBar('종소리');
+      if (!miruSaid) { miruSaid = true; G.hud.say('SD04_miru_20'); }   // "음악회 가는 길은 내가 알아. 시끄러운 큰길 말고 조용한 골목으로 가자."
+      return true;
+    };
+    const stop = G.every((dt) => {
+      if (!V.el.isConnected) { if (seen || V.gone) { stop(); clear(); } return; }
+      seen = true; t += dt;
+      if (fin) return;
+      const H = V.fxHero;
+      if (M && calm() && H) M.step(dt, H);
+      next -= dt; if (next > 0) return; next = 0.25;
+      if (!bellOn()) { if (M) clear(); return; }
+      if (!H || !calm()) return;
+      if (!M) { if (!(G.D.places.map || {}).free || !start(H)) return; ringT = 0.6; }
+      const w = M.w, d = Math.hypot(w.x - H.x, (w.y - H.y) * 2);
+      bar.set(Math.max(0, 1 - d / BELL.R));
+      ringT -= 0.25; if (ringT <= 0) { ringT = BELL.every; ring(H); }
+      if (M.end() && Math.hypot(w.x - H.x, w.y - H.y) < 360) {   // 광장에 함께 닿음 → 미루는 음악회 쪽으로 들어가 사라짐
+        fin = true; mark('s2_bellwalk'); G.audio.sfx('sfx_chime', 0.35, 1.3);
+        const m = M, b = bar; M = null; bar = null;
+        G.tween(1, 0, G.reduced() ? 0.2 : 1.2, (k) => { m.w.el.style.opacity = k; }, 'io').then(() => { m.remove(); b.remove(); if (V.el.isConnected) hideNpc(V, 'miru', false); });
+      }
+    });
+  }
+  G.x3.bellOn = bellOn;
+
+  // ================= I09 별 4: 누리와 계단 길 =================
+  //  near = 첫 계단(s1) 발치, wait = 누리가 멈추는 자리(계단 왼쪽 아랫길), face = 누리가 바라보는 계단 가운데,
+  //  way = 누리가 그린 둘러 가는 길(아랫길 → 흙 비탈 e1 → 목공방 마당). 모두 지도 걷기 칸(s4_hill_map 뒤 다시 잼)
+  const STAIR = { near: [5720, 1528], nearR: 110, wait: [5655, 1552], face: [5760, 1510],
+    way: [[5690, 1605], [5913, 1645], [6000, 1655], [6110, 1672], [6235, 1690]] };
+  // 별 4 뒤 경사로: 장면 경사로 그림에서 지도에 보이는 점만 남긴 그림(지도 1.0 큰 그림 크기) → 지도 자리 [x, y, w, h]
+  const RAMPS = { s1: [5665.4, 1413.8, 207.4, 141.7], s2: [5859.1, 1272.7, 203.5, 147.6], s3: [5239, 1337, 169, 95.6] };
+  const NURI = { leg: 380, wait: 280, speed: 125, back: 110 };
+  const s4On = () => done('s4_fog') && !!(G.D.places.map || {}).free;
+  const nuriOn = () => s4On() && !!G.st && G.st.cleared.includes('s4gate') && !done('s4shop_intro') && !done('s4_nuriway');
+  const said = new Set();
+  let rampShow = null;   // 지금 지도의 경사로 보이기(깨어남 때 부름). 지도마다 바뀜
+  function attach4(V) {
+    if (!s4On()) return;
+    // 경사로: 별 4를 끝낸 뒤에만. 처음 한 번은 숨겨 두었다가 깨어남(또는 지도가 조용해질 때) 천천히 나타남
+    let rp = null;
+    if (G.st && G.st.cleared.includes('s4plaza')) {
+      const now = done('s4_ramp');
+      rp = Object.entries(RAMPS).map(([k, b]) => { const im = G.el('img', 'x3-ramp', V.fx); im.src = G.asset('assets/map/_v2_/s4hill_ramp_' + k + '.png'); im.alt = ''; im.draggable = false;
+        Object.assign(im.style, { position: 'absolute', left: b[0] + 'px', top: b[1] + 'px', width: b[2] + 'px', height: b[3] + 'px', zIndex: 2, pointerEvents: 'none', opacity: now ? 1 : 0 }); return im; });
+      if (now) rp = null;
+    }
+    const show = () => {
+      if (!rp) return; const ims = rp; rp = null; mark('s4_ramp'); G.audio.sfx('sfx_sparkle', 0.5);
+      for (const [k, b] of Object.entries(RAMPS)) G.pfx.play('star_burst', { world: true, parent: V.fx, x: b[0] + b[2] / 2, y: b[1] + b[3] / 2, z: Math.round(b[1] + b[3]), scale: 1.4 });
+      G.tween(0, 1, G.reduced() ? 0.2 : 1.6, (k) => { for (const im of ims) im.style.opacity = k; }, 'io');
+    };
+    rampShow = show;
+    let seen = false, next = 0, N = null, phase = '', trail = [], btn = null, line = null, fin = false;
+    const clear = () => { if (N) { N.remove(); hideNpc(V, 'nuri', false); } N = null; if (btn) btn.remove(); btn = null; if (line) line.remove(); line = null; phase = ''; trail = []; };
+    const calm = () => G.screen === 'map' && !G.busy && !G.paused && !G.$('#game').classList.contains('talking');
+    const say = (id) => { if (!said.has(id)) { said.add(id); G.hud.say(id); } };
+    const follow = (dt, H) => {   // 주인공 발자취를 따라 뒤에서(백 칸쯤) 옴
+      const w = N.w, L = trail[trail.length - 1];
+      if (!L || Math.hypot(H.x - L[0], H.y - L[1]) > 16) { trail.push([H.x, H.y]); if (trail.length > 40) trail.shift(); }
+      let tgt = null, acc = 0; for (let i = trail.length - 1; i > 0; i--) { acc += Math.hypot(trail[i][0] - trail[i - 1][0], trail[i][1] - trail[i - 1][1]); if (acc >= NURI.back) { tgt = trail[i - 1]; break; } }
+      if (!tgt) { if (w.frame !== 8) { w.frame = 8; w.draw(); } return; }
+      const dx = tgt[0] - w.x, dy = tgt[1] - w.y, d = Math.hypot(dx, dy);
+      if (d > 700) { w.set(tgt[0], tgt[1]); return; }
+      if (d < 6) { if (w.frame !== 8) { w.frame = 8; w.face(H.x - w.x, H.y - w.y); w.draw(); } return; }
+      const s = Math.min(d, Math.min(320, 80 + d * 2.2) * dt); w.face(dx, dy); w.set(w.x + dx / d * s, w.y + dy / d * s); N.u += s / 94; w.frame = Math.floor(N.u * 8) % 8; w.draw();
+    };
+    const goTo = (dt, p) => {   // 계단 앞 자리까지 와서 멈춤(단추가 누리를 따라감)
+      const w = N.w, dx = p[0] - w.x, dy = p[1] - w.y, d = Math.hypot(dx, dy);
+      if (d < 4) { if (w.frame !== 8) { w.frame = 8; w.face(STAIR.face[0] - w.x, STAIR.face[1] - w.y); w.draw(); } return; }
+      const s = Math.min(d, 150 * dt); w.face(dx, dy); w.set(w.x + dx / d * s, w.y + dy / d * s); N.u += s / 94; w.frame = Math.floor(N.u * 8) % 8; w.draw();
+      if (btn) { btn.style.left = w.x + 'px'; btn.style.top = (w.y - 190) + 'px'; }
+    };
+    const lead = () => {   // [누리 지도]: 점선 길 + 누리가 앞장
+      if (btn) btn.remove(); btn = null; G.audio.sfx('sfx_page', 0.6);
+      const pts = [[N.w.x, N.w.y], ...STAIR.way];
+      const ns = 'http://www.w3.org/2000/svg'; line = document.createElementNS(ns, 'svg'); line.setAttribute('class', 'x3-way');
+      const x0 = Math.min(...pts.map((p) => p[0])) - 20, y0 = Math.min(...pts.map((p) => p[1])) - 20, x1 = Math.max(...pts.map((p) => p[0])) + 20, y1 = Math.max(...pts.map((p) => p[1])) + 20;
+      Object.assign(line.style, { position: 'absolute', left: x0 + 'px', top: y0 + 'px', zIndex: 3, pointerEvents: 'none', overflow: 'visible' }); line.setAttribute('width', x1 - x0); line.setAttribute('height', y1 - y0);
+      const pl = document.createElementNS(ns, 'polyline'); pl.setAttribute('points', pts.map((p) => (p[0] - x0) + ',' + (p[1] - y0)).join(' ')); line.appendChild(pl); V.fx.appendChild(line);
+      const g = guide(V, 'nuri', pts, NURI); g.u = N.u; N.remove(); N = g; N.walking = true; phase = 'lead';
+      G.hud.say('TD01_nuri_12');   // "여기는 완만해서 나도 갈 수 있어! 같이 가자!"
+    };
+    const stop = G.every((dt) => {
+      if (!V.el.isConnected) { if (seen || V.gone) { stop(); clear(); if (rampShow === show) rampShow = null; } return; }
+      seen = true;
+      if (rp && calm() && !document.querySelector('.wake-skip')) show();   // 깨어남 없이 들어온 지도(옛 저장 등)도 경사로가 나타남
+      if (fin) return;
+      const H = V.fxHero;
+      if (N && H && calm()) { if (phase === 'follow') follow(dt, H); else if (phase === 'lead') N.step(dt, H); else if (phase === 'stuck') goTo(dt, STAIR.wait); }
+      next -= dt; if (next > 0) return; next = 0.25;
+      if (!nuriOn()) { if (N) clear(); return; }
+      if (!H || !calm()) return;
+      if (!N) {   // 누리가 주인공 뒤에 나타남
+        N = guide(V, 'nuri', [[H.x - 70, H.y + 24]], NURI); N.walking = false; phase = 'follow'; trail = [[H.x - 70, H.y + 24], [H.x, H.y]]; hideNpc(V, 'nuri', true);
+      }
+      if (phase === 'follow' && Math.hypot(H.x - STAIR.near[0], H.y - STAIR.near[1]) < STAIR.nearR && Math.hypot(N.w.x - STAIR.near[0], N.w.y - STAIR.near[1]) < STAIR.nearR + 120) {
+        phase = 'stuck'; N.w.frame = 8; N.w.face(STAIR.face[0] - N.w.x, STAIR.face[1] - N.w.y); N.w.draw();
+        G.hud.say('TD01_nuri_01');   // "출발! 어, 또 계단이네."
+        style(); btn = G.btn('x3-mapbtn', (G.artImg('item_s4map') || '') + '<span>누리 지도</span>', V.fx, lead, '누리 지도 보기');
+        Object.assign(btn.style, { left: N.w.x + 'px', top: (N.w.y - 190) + 'px', zIndex: 2996 });
+        if (G.reduced()) btn.style.animation = 'none';
+      }
+      const shop = G.D.places.nodes[G.map.node('s4shop')];
+      if (shop && Math.hypot(H.x - shop[0], H.y - shop[1]) < 260 && (phase !== 'lead' || N.end() || Math.hypot(N.w.x - shop[0], N.w.y - shop[1]) < 300)) {   // 목공방 마당에 함께 닿음
+        fin = true; mark('s4_nuriway'); G.audio.sfx('sfx_chime', 0.35, 1.3);
+        if (btn) btn.remove(); btn = null;
+        const n = N, l = line; N = null; line = null; say('TD01_nuri_06');   // "첫 번째는 마루 할머니 목공방이야."
+        G.tween(1, 0, G.reduced() ? 0.2 : 1.2, (k) => { n.w.el.style.opacity = k; if (l) l.style.opacity = k; }, 'io').then(() => { n.remove(); if (l) l.remove(); if (V.el.isConnected) hideNpc(V, 'nuri', false); });   // 목공방 앞 누리(장소 인물)가 다시 보임
+      }
+    });
+  }
+  const mv1 = G.mapView;
+  G.mapView = (parent, o = {}) => { const V = mv1(parent, o); try { attach4(V); } catch (e) { console.error(e); } return V; };
+  // 별 4 깨어남이 시작될 때 경사로가 나타남(H5 a). 깨어남 장면 자체는 worldmap.js 그대로
+  const wk0 = G.map.wake;
+  if (wk0) G.map.wake = (n) => { if (n === 4 && rampShow) try { rampShow(); } catch (e) { console.error(e); } return wk0(n); };
+  G.x3.STAIR = STAIR; G.x3.RAMPS = RAMPS; G.x3.nuriOn = nuriOn;
+})();
+
 /* ---- lumideco.js ---- */
 // lumideco.js — 10/11 루미 꾸미기 + 내 별자리 (남는 별가루 쓰기)
 // 선생님 규칙: 길의 별이 끝난 뒤 열림. 쓸 수 있는 별가루 = 올린 별마다 (모은 수 - 5)의 합 - 쓴 수. 아직 올리지 않은 별의 별가루는 쓸 수 없음.
@@ -16461,7 +16784,7 @@ G.titleBook = (ov, onStart) => {
 // main.js — 시작과 흐름: 타이틀(U1) → 저장 칸 번호 고르기(U2) → 이름 → 인트로 C1 → 루미 만남 → 마을 지도
 'use strict';
 G.VERSION = '별의 스펙트럼 (2026-11-09)';
-G.BUILT = '2026-11-09 08:05';   // 10/6 선생님: 최종본 전까지 표지 오른쪽 아래에 최종 수정 일시 (개발자 확인용)   // 10/4: 날짜는 build.py가 만든 날로 바꿈
+G.BUILT = '2026-11-09 11:54';   // 10/6 선생님: 최종본 전까지 표지 오른쪽 아래에 최종 수정 일시 (개발자 확인용)   // 10/4: 날짜는 build.py가 만든 날로 바꿈
 G.defaults = { volume: 0.9, volVoice: 1, volMusic: 1, volSfx: 1, voiceOn: true, textBig: false, help: 'normal', choiceOne: false, reduceMotion: false, reduceAuto: true, hideSkip: false, shortStory: false, fast: false, level: 'normal', slotCount: 12, light: false, tapPlace: true, soundLight: true };
 G.applySettings = () => {
   const s = G.settings;

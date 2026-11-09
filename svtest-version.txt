@@ -1,3 +1,5 @@
 시험판(학생용 아님)
-원본: star-village-source improvement/star-village-audit-0f87a160 97631e1e 정식 빌드(플레이 감각 2차: 점자블록·물결·빛살 등), 캐시 starvillage-c2067cc4
-판 2 기록은 가지 pan2, 판 3은 8d9f4b4
+원본: star-village-source claude/project-thread-2ivaf2 a9a29d91 (main 4d7207ac 위) 물건 그림자(지도·장소 19곳 그늘 그림, 장소 앞 사람 발 그림자), 캐시 starvillage-4a0606d6
+그림 파일은 학생 웹 e25ca1c 것 그대로(점 하나도 같은 것), 새 그늘 그림 11개와 data.js·game.js·sw.js·index.html만 바꿈
+학생 웹 판: e25ca1c (starvillage-0884f903)
+이전 시험판: 3ce39c6 (타이틀 입체)
