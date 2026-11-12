@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>사파리 자동 검증</title>
+<style>
+:root{--bg:#fbf8f2;--fg:#222;--mut:#666;--line:#ddd;--ok:#1d7a3a;--bad:#b3261e;--warn:#8a5a00;--btn:#2f5bd3}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1b1d;--fg:#eee;--mut:#aaa;--line:#444;--ok:#6fd38d;--bad:#ff8a80;--warn:#f0c060;--btn:#6d8fff}}
+body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:18px/1.55 -apple-system,system-ui,sans-serif;max-width:760px}
+h1{font-size:22px;margin:0 0 6px}.mut{color:var(--mut);font-size:15px}
+button{font-size:20px;padding:14px 22px;margin:8px 8px 8px 0;border-radius:12px;border:0;background:var(--btn);color:#fff}
+button.sub{background:transparent;color:var(--fg);border:1px solid var(--line);font-size:16px;padding:10px 14px}
+button:disabled{opacity:.4}
+#say{font-size:20px;font-weight:600;margin:14px 0;padding:14px;border-radius:12px;border:2px solid var(--line)}
+#bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:6px 0 12px}#bar i{display:block;height:100%;width:0;background:var(--btn)}
+table{border-collapse:collapse;width:100%;font-size:15px}td{border-bottom:1px solid var(--line);padding:6px 4px;vertical-align:top}
+td:first-child{width:3.4em;font-weight:700;white-space:nowrap}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}
+#gw{position:fixed;inset:0;background:#000;display:none;z-index:9}#gw iframe{width:100%;height:100%;border:0}
+#gtag{position:fixed;left:8px;bottom:8px;z-index:10;background:rgba(0,0,0,.72);color:#fff;font-size:14px;padding:5px 9px;border-radius:8px;display:none;max-width:70vw;pointer-events:none}
+#stop{position:fixed;right:8px;bottom:8px;z-index:10;display:none;font-size:14px;padding:7px 11px;margin:0;background:#b3261e}
+#ask{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translateX(-50%);z-index:12;display:none;width:min(560px,92vw);background:#fffbe8;color:#222;border:3px solid #e0a800;border-radius:16px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:19px;line-height:1.45}
+#ask b{display:block;font-size:21px;margin-bottom:4px}#ask .t{font-size:14px;color:#666}#ask button{font-size:19px;padding:10px 18px;margin:8px 8px 0 0}#ask button.no{background:#777}
+</style></head><body>
+<h1>사파리 자동 검증 (STEP 3 미검증 항목)</h1>
+<p class="mut">게임 코드가 아니에요. 주소를 열면 저절로 시작해요. 처음 2~3분은 노란 창이 뜨면 시키는 대로 한 번씩 해 주세요(누르기, 조이스틱, 기기 돌리기, 홈에 다녀오기). 그 뒤 20분쯤은 화면을 켜 둔 채 두시면 돼요. 끝나면 [결과 복사]를 눌러 채팅에 붙여 넣어 주세요. 이 기기의 시험판 저장은 끝나면 그대로 되돌려요.</p>
+<div id="say">곧 시작해요…</div>
+<div id="bar"><i id="barI"></i></div>
+<button id="go">처음부터 다시</button><button id="copy" class="sub">결과 복사</button>
+<table id="tb"></table>
+<div id="gw"><iframe id="gf" title="게임"></iframe></div><div id="gtag"></div><button id="stop">멈춤</button>
+<div id="ask"></div>
+<script>
+// 11/12 선생님: "UNVERIFIED_TEST_ITEMS을 safari에서 주소창 열어서 실행하면 알아서 검증하게"
+// 항목 번호 U-1~U-18 = 감사_1112_STEP3/UNVERIFIED_TEST_ITEMS.md. 기준은 sv-review(11/8)와 같음: 메모리 150MB, 되풀이 +5MB·화면 요소 +20·타이머/일감 늘면 실패
+const VER='sv-safari 1.0 (11/12)';
+const $=id=>document.getElementById(id),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const BUD=150,KEY='svsafari.run',HIST='svsafari.hist';
+const BOTSRC="    const vis = (e) => e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none';\n    const B = (window.__bot ||= { tap: {}, walk: null, dragN: 0, byp: [] });\n    const click = (e, w) => { e.click(); return w; };\n    const nx = [...document.querySelectorAll('.dlg-next.ready')].find(vis); if (nx) return click(nx, 'next');\n    const cs = [...document.querySelectorAll('.choice')].filter(vis); if (cs.length) return click(cs[0], 'choice');\n    const sk = [...document.querySelectorAll('.skip')].find(vis); if (sk) return click(sk, 'skip');\n    const lc = [...document.querySelectorAll('.lumi-catch')].find(vis); if (lc) return click(lc, 'lumi-catch');\n    const sc0 = [...document.querySelectorAll('.sky-close')].find(vis); if (sc0) return click(sc0, 'close-studio');\n    const fr = document.querySelector('.pzf iframe');   // 11/1 새 퍼즐 창(G.pzf)\n    if (fr) { try { const w = fr.contentWindow; if (!w.WON) { w.WON = true; B.byp.push('pzf:' + (document.title || '') + ':' + (G.st.place || '')); return 'BYPASS-pzf'; } return 'wait:pzf-won'; } catch (e) { return 'wait:pzf-err'; } }\n    if (G.p4 && G.p4.can && G.p4.can()) { G.p4.skip(); B.byp.push('p4:' + (G.st.place || '')); return 'BYPASS-p4'; }\n    const drop = [...document.querySelectorAll('.p4-drop-ready')].find(vis); if (drop) return click(drop, 'drop');\n    { const dr = [...document.querySelectorAll('#world [style*=\"touch-action: none\"], #overlay [style*=\"touch-action: none\"]')].filter(vis).filter((e) => !/used|p4-picked/.test(e.className) && !e.classList.contains('world'));\n      if (dr.length && !G.dialog.active && !(G.busy > 0)) { const k = (B.dragN = (B.dragN || 0) + 1) % dr.length; return click(dr[k], 'pick'); } }\n    if (G.busy > 0 || (G.dialog && G.dialog.active) || document.querySelector('.cut')) return 'wait:' + (G.busy > 0 ? 'busy' : G.dialog.active ? 'dlg' : 'cut');\n    const ov = [...document.querySelectorAll('#overlay button, #overlay [role=\"button\"]')].filter(vis).filter((b) => !b.disabled && !/^(설정|교사|닫기|가방)/.test((b.getAttribute('aria-label') || b.textContent || '').trim()));\n    if (ov.length) return click(ov[ov.length - 1], 'overlay:' + (ov[ov.length - 1].getAttribute('aria-label') || ov[ov.length - 1].textContent.trim()).slice(0, 20));\n    if (G.screen === 'puzzle') { const hits = [...document.querySelectorAll('.puzzle .pz-hit')], i = G.D.puzzles.braille1.labels.findIndex((l) => l.answer); if (hits[i] && vis(hits[i])) return click(hits[i], 'braille'); const cl = [...document.querySelectorAll('#world button')].filter(vis).find((b) => /닫기/.test(b.textContent)); if (cl) return click(cl, 'close'); return 'puzzle:wait'; }\n    const du = [...document.querySelectorAll('button.p4-dust')].find((e) => vis(e) && e.style.pointerEvents !== 'none' && !(G.scene.busy && G.scene.busy()));\n    if (du) return click(du, 'dust');\n    if (G.screen === 'scene') {\n      if (G.scene.busy && G.scene.busy()) return 'wait:flow';\n      const go = [...document.querySelectorAll('.hud-go')].find(vis);\n      const sc = G.st.place, hs = [...document.querySelectorAll('#world button.hot')].filter(vis);\n      if (go && (!hs.length || hs.every((h) => (B.tap[sc + ':' + h.getAttribute('aria-label')] || 0) >= 2))) { B.walk = null; return click(go, 'go-map'); }\n      if (!hs.length) return 'scene:no-hot';\n      const key = (h) => sc + ':' + h.getAttribute('aria-label');\n      hs.sort((a, b) => (B.tap[key(a)] || 0) - (B.tap[key(b)] || 0) || (+b.style.zIndex || 0) - (+a.style.zIndex || 0));\n      const h = hs[0]; B.tap[key(h)] = (B.tap[key(h)] || 0) + 1; h.click(); return 'hot:' + h.getAttribute('aria-label') + '#' + B.tap[key(h)];\n    }\n    if (G.screen === 'map') {\n      const en = [...document.querySelectorAll('.enter-btn')].find(vis); if (en) return click(en, 'enter');\n      const np = G.hud.nextPlace && G.hud.nextPlace(); if (!np) return 'map:no-next';\n      if (B.walk === np.id) return 'map:walking'; B.walk = np.id; G.map.walkTo(np); return 'map:walk ' + np.id;\n    }\n    return 'screen:' + G.screen;\n";
+// 별 2를 끝낸 시험 저장(이름 없음). 별 3 자동 놀이(U-11)가 앞 별 진행이 있는 상태에서 시작하게 함
+const S2SAVE="{\"v\": 2, \"slot\": 9, \"name\": \"자동검증\", \"stars\": 2, \"place\": \"plaza\", \"chapter\": \"start\", \"done\": [\"meet_lumi\", \"plaza_intro\", \"plaza_chief\", \"plaza_board\", \"plaza_post\", \"library_intro\", \"library_haesol\", \"library_tactile\", \"library_puzzle\", \"plaza_post_ask\", \"letter_1\", \"letter_2\", \"letter_3\", \"market_jig\", \"libdoor_seen\", \"libdoor_open\", \"note_got\", \"forest_intro\", \"forest_wind\", \"forest_star\", \"forest_daon\", \"plaza2_intro\", \"plaza2_board\", \"plaza2_road\", \"plaza2_look\", \"plaza2_star\", \"road_tiles\", \"s2_begin\", \"s2_fog\", \"s2school_intro\", \"s2s_talk\", \"s2n_chair\", \"s2f_chair\", \"s2n_window\", \"s2f_window\", \"s2n_bell\", \"s2f_bell\", \"s2n_locker\", \"s2school_noise\", \"s2f_locker\", \"s2school_fix\", \"s2school_ask\", \"s2school_card\", \"s2door_open\", \"s2hall_intro\", \"s2hall_duri\", \"s2hall_seats\", \"s2hall_score\", \"s2hall_drum\", \"s2rest_intro\", \"s2rest_miru\", \"s2rest_box\", \"s2rest_deco\", \"s2rest_star\", \"s2plaza_intro\", \"s2plaza_concert\", \"s2plaza_star\", \"s2_end\"], \"items\": [\"note\", \"map\", \"tactile\", \"piece\", \"rhythm\", \"score\", \"piece_sound\"], \"mood\": 5, \"env\": {\"board\": true, \"guide\": true}, \"seenCutscenes\": [\"C1\", \"C2\", \"C3\", \"C4\", \"C5\", \"C6\", \"C7\", \"C8\", \"C10\", \"C11\", \"C12\", \"CH:intro\", \"CH:plaza\", \"CH:market\", \"CH:library\", \"CH:forest\", \"CH:plaza2\", \"CH:ending\", \"CH:s2_1\", \"CH:s2school\", \"S2A_s2school\", \"CH:s2hall\", \"S2A_s2hall\", \"CH:s2rest\", \"S2A_s2rest\", \"CH:s2plaza\", \"S2A_s2plaza\", \"V:raise_sound\", \"CH:s2_6\", \"wake2\"], \"quest\": 5, \"cleared\": [\"plaza\", \"market\", \"library\", \"forest\", \"plaza2\", \"s2school\", \"s2hall\", \"s2rest\", \"s2plaza\"], \"visited\": [\"plaza\", \"market\", \"library\", \"forest\", \"plaza2\", \"s2school\", \"s2hall\", \"s2rest\", \"s2plaza\"], \"seen\": [\"s2school:daon\", \"s2school:chair\", \"s2school:window\", \"s2school:bell\", \"s2school:locker\", \"s2school:v5\", \"s2school:board\", \"s2hall:duri\", \"s2hall:seats\", \"s2hall:score\", \"s2rest:miru\", \"s2rest:box\", \"s2rest:pavilion\", \"demo_drag\", \"s2rest:bushC\", \"s2plaza:duri\", \"s2plaza:pedestal\"], \"started\": true, \"dust\": [\"plaza:0\", \"market:0\", \"library:0\", \"map:v2\", \"map:v3\"], \"s2dust\": [\"s2school:0\", \"s2school:h:locker\", \"s2hall:0\", \"s2rest:0\", \"s2rest:cushion\", \"s2plaza:c0\", \"s2plaza:c1\"], \"s2bloom\": [\"s2school\", \"s2hall\", \"s2rest\"], \"accSeen\": [\"block\", \"lamp\", \"rest\"], \"lumi\": {\"owned\": [], \"sky\": [], \"wear\": \"\"}, \"wordSeen\": [\"걸쇠\", \"경첩\"], \"story\": {\"clues\": [1], \"emb2\": 1, \"win\": {\"2\": 0}}}";
+const ONLY=new URLSearchParams(location.search).get('only')||'';const R=[];let snap=null,stopped=false,running=false;
+function row(st,txt){R.push([st,txt]);const tr=document.createElement('tr');tr.innerHTML='<td class="'+({'통과':'ok','실패':'bad','주의':'warn','미검증':'warn'}[st]||'')+'">'+st+'</td><td></td>';tr.lastChild.textContent=txt;$('tb').appendChild(tr);}
+const say=t=>$('say').textContent=t,bar=f=>$('barI').style.width=Math.round(f*100)+'%',tag=t=>$('gtag').textContent=t;
+const lsSnap=()=>{const o={};for(const k of Object.keys(localStorage))if(k.startsWith('starvillage'))o[k]=localStorage.getItem(k);return o;};
+function restoreSave(){if(!snap)return;for(const k of Object.keys(localStorage))if(k.startsWith('starvillage')&&!(k in snap))localStorage.removeItem(k);for(const k in snap)localStorage.setItem(k,snap[k]);}
+function mark(step){try{localStorage.setItem(KEY,JSON.stringify({step,t:Date.now(),snap}));}catch(_){}}
+// 사파리가 메모리 부족으로 페이지를 다시 열면 지난 실행이 어디서 멈췄는지 알려 줌(U-2). 이때는 저절로 다시 시작하지 않음
+let crashed=false;
+(function(){let o=null;try{o=JSON.parse(localStorage.getItem(KEY)||'null');}catch(_){}if(!o)return;crashed=true;
+ row('실패','U-2 지난 검증이 끝나지 못했어요. 마지막 단계: '+o.step+' ('+new Date(o.t).toLocaleTimeString('ko-KR')+'). 사파리가 메모리 부족으로 페이지를 다시 열었을 수 있어요.');
+ if(o.snap){snap=o.snap;restoreSave();row('정보','지난 실행 전 저장을 되돌렸어요.');}localStorage.removeItem(KEY);})();
+
+// ---- 노란 창: 사람에게 한 가지 부탁하고, 조건이 맞으면 저절로 닫힘. 시간이 지나면 '미검증'
+function ask(title,body,{check,yesno,timeout=60000}={}){return new Promise(res=>{const A=$('ask');A.innerHTML='';const b=document.createElement('b');b.textContent=title;A.appendChild(b);const p=document.createElement('div');p.textContent=body;A.appendChild(p);
+ const t=document.createElement('div');t.className='t';A.appendChild(t);let done=false;const end=v=>{if(done)return;done=true;clearInterval(iv);A.style.display='none';res(v);};
+ if(yesno){const y=document.createElement('button');y.textContent=yesno[0];y.onclick=()=>end('yes');const n=document.createElement('button');n.className='no';n.textContent=yesno[1];n.onclick=()=>end('no');A.appendChild(y);A.appendChild(n);}
+ const sk=document.createElement('button');sk.className='no';sk.textContent='건너뛰기';sk.onclick=()=>end('skip');A.appendChild(sk);
+ A.style.display='block';const t0=Date.now();const iv=setInterval(()=>{if(stopped)return end('skip');const left=Math.ceil((timeout-(Date.now()-t0))/1000);t.textContent=left+'초 안에 안 하면 건너뛰어요';if(left<=0)end('timeout');try{if(check&&check())end('ok');}catch(_){}},300);});}
+
+async function openGame(){$('gw').style.display='block';$('gtag').style.display='block';$('stop').style.display='block';const f=$('gf'),t=Date.now();
+ const errs=[];f.src='./?svsafari='+Date.now();await new Promise(r=>f.onload=r);const W=f.contentWindow;
+ try{W.addEventListener('error',e=>errs.push(String(e.message||e.type).slice(0,140)));W.addEventListener('unhandledrejection',e=>errs.push('약속 실패: '+String(e.reason&&e.reason.message||e.reason).slice(0,140)));
+  const ce=W.console.error.bind(W.console);W.console.error=(...a)=>{errs.push('콘솔: '+a.map(String).join(' ').slice(0,140));ce(...a);};}catch(_){}
+ // 소리 엔진을 붙잡아 상태를 봄(게임은 처음 누를 때 만듦)
+ const ACs=[];try{for(const k of ['AudioContext','webkitAudioContext']){const C=W[k];if(!C)continue;const Wr=function(...a){const c=new C(...a);ACs.push(c);return c;};Wr.prototype=C.prototype;W[k]=Wr;}}catch(_){}
+ for(let i=0;i<1200;i++){if(W.G&&W.G.screen==='title')return{s:(Date.now()-t)/1000,W,errs,ACs};await sleep(250);}return{s:null,W,errs,ACs};}
+function closeGame(){$('gf').src='about:blank';$('gw').style.display='none';$('gtag').style.display='none';$('stop').style.display='none';$('ask').style.display='none';}
+
+function kit(W,errs){const G=W.G,D=W.document;
+ const wait=async(fn,n=160)=>{for(let i=0;i<n;i++){if(stopped)return false;try{if(fn())return true;}catch(_){}await sleep(250);}return false;};
+ const view=()=>G.screen==='map'?G.map.V:(G.scene.view&&G.scene.view());
+ const idle=()=>{const v=view();return!!(v&&(!v.px||!v.px.busy()))&&!D.querySelector('#fade.on');};
+ const mem=()=>{try{return G.memNow?G.memNow():{total:-1};}catch(_){return{total:-1};}};
+ const fps=async(ms=1500)=>{const d=[];let l=0,on=true;const f=t=>{if(l)d.push(t-l);l=t;if(on)W.requestAnimationFrame(f);};W.requestAnimationFrame(f);await sleep(ms);on=false;if(!d.length)return{fps:0,p95:0,max:0};d.sort((a,b)=>a-b);const avg=d.reduce((a,b)=>a+b,0)/d.length;return{fps:Math.round(1000/avg),p95:Math.round(d[Math.floor(d.length*.95)]),max:Math.round(d[d.length-1])};};
+ const dom=()=>D.getElementsByTagName('*').length;
+ const broken=()=>[...D.images].filter(i=>i.complete&&i.src&&!/^data:/.test(i.src)&&i.naturalWidth===0).length;
+ const live=new Set(),si=W.setInterval,ci=W.clearInterval;W.setInterval=function(...a){const id=si.apply(this,a);live.add(id);return id;};W.clearInterval=function(id){live.delete(id);return ci.call(this,id);};
+ const up=new Set(),ev=G.every;G.every=fn=>{up.add(fn);const off=ev(fn);return()=>{up.delete(fn);return off();};};
+ const settle=async()=>{try{if(G.cut&&G.cut.active)G.cut.active.skip();}catch(_){}try{if(G.dialog&&G.dialog.active&&G.dialog.close)G.dialog.close();}catch(_){}await wait(()=>!D.querySelector('#overlay .cut'),40);G.gen++;G.busy=0;};
+ const toMap=async()=>{await settle();try{await G.map.show({});}catch(_){}return await wait(()=>G.screen==='map')&&await wait(idle,80);};
+ const enter=async id=>{await settle();const t=Date.now();try{G.scene.enter(id);}catch(e){errs.push('들어가기 '+id+': '+e.message);}const ok=await wait(()=>G.screen==='scene'&&G.st.place&&view())&&await wait(()=>!D.querySelector('#overlay .cut')&&!(G.dialog&&G.dialog.active),240)&&await wait(idle,120);return{ok,s:(Date.now()-t)/1000};};
+ const vis=e=>e&&e.offsetParent!==null&&W.getComputedStyle(e).visibility!=='hidden';
+ let adv=null;const advOn=()=>{if(adv)return;adv=setInterval(()=>{try{const nx=[...D.querySelectorAll('.dlg-next.ready')].find(vis);if(nx)return nx.click();const cs=[...D.querySelectorAll('.choice')].filter(vis);if(cs.length)return cs[0].click();const sk=[...D.querySelectorAll('.skip')].find(vis);if(sk)sk.click();}catch(_){}},400);};
+ const advOff=()=>{clearInterval(adv);adv=null;};advOn();
+ // 그리기 한 번에 GPU 그리기 명령(draw call)이 몇 번인지, PixiJS가 들고 있는 그림 수(U-16)
+ const draws=()=>{try{const app=G.px&&G.px.app,gl=app&&app.renderer.gl;if(!gl)return null;let n=0;const fns=['drawElements','drawArrays','drawElementsInstanced','drawArraysInstanced'],old={};for(const k of fns)if(gl[k]){old[k]=gl[k];gl[k]=function(...a){n++;return old[k].apply(this,a);};}
+  try{app.render();}finally{for(const k in old)gl[k]=old[k];}const tm=app.renderer.texture&&app.renderer.texture.managedTextures;const rt=app.renderer.renderTarget;let nrt=null;try{nrt=rt&&rt._renderSurfaceToRenderTargetHash?rt._renderSurfaceToRenderTargetHash.size:null;}catch(_){}return{n,tex:tm?tm.length:null,rt:nrt};}catch(e){return{err:e.message};}};
+ return{G,D,wait,idle,mem,fps,dom,broken,live,up,toMap,enter,settle,view,advOn,advOff,draws};}
+
+async function run(){if(running)return;running=true;stopped=false;$('go').disabled=true;R.length=0;$('tb').innerHTML='';bar(0);
+ snap=lsSnap();mark('시작');let K=null;
+ try{
+  const hist=(()=>{try{return JSON.parse(localStorage.getItem(HIST)||'[]');}catch(_){return[];}})();
+  row('정보',VER+' / '+new Date().toLocaleString('ko-KR')+' / '+((navigator.standalone||matchMedia('(display-mode: standalone)').matches)?'홈 화면 앱':'사파리 탭')+' / 화면 '+screen.width+'x'+screen.height+'@'+devicePixelRatio+' / 터치점 '+navigator.maxTouchPoints+' / '+navigator.userAgent.replace(/^Mozilla\/5.0 /,''));
+  try{const s=await (await fetch('sw.js?x='+Date.now(),{cache:'no-store'})).text();row('정보','서버 판: '+((/const CACHE='([^']+)'/.exec(s)||[])[1]||'모름'));}catch(_){}
+  // U-9 서비스워커·캐시
+  try{const ctl=!!(navigator.serviceWorker&&navigator.serviceWorker.controller);const ks=window.caches?await caches.keys():[];const mine=ks.filter(k=>/^starvillage-/.test(k));
+   row(ctl&&mine.length?'통과':'주의','U-9 서비스워커 '+(ctl?'켜짐':'아직 안 켜짐(처음 연 때는 정상)')+', 저장된 캐시 '+mine.join(',')+(hist.length?' / 지난번 제목 '+hist.map(h=>h.s+'초').slice(-3).join('·'):' / 처음 여는 검증'));}catch(e){row('주의','U-9 캐시 확인 못 함: '+e.message);}
+  say('게임을 여는 중이에요…');tag('게임 여는 중');mark('게임 열기');
+  const g=await openGame();if(!g.s){row('실패','U-10 게임 제목이 5분 안에 안 떴어요.');return;}
+  const prev=hist.length?hist[hist.length-1].s:null;
+  row(g.s<30?'통과':'주의','U-10 게임 제목까지 '+g.s.toFixed(1)+'초'+(prev!=null?' (지난번 '+prev+'초. U-9 두 번째 열기가 '+(g.s<prev?'더 빠름':'빠르지 않음')+')':' (이 주소를 한 번 더 열면 두 번째 열기와 비교해요)'));
+  try{hist.push({s:+g.s.toFixed(1),t:Date.now()});localStorage.setItem(HIST,JSON.stringify(hist.slice(-6)));}catch(_){}
+  K=kit(g.W,g.errs);const G=K.G;window.__K=K;
+  try{const c=g.W.document.createElement('canvas');const gl=c.getContext('webgl2')||c.getContext('webgl');row('정보','U-3 WebGL '+(gl?(gl instanceof g.W.WebGL2RenderingContext?'2':'1')+', 그림 최대 '+gl.getParameter(gl.MAX_TEXTURE_SIZE)+', ASTC '+!!gl.getExtension('WEBGL_compressed_texture_astc')+', ETC '+!!gl.getExtension('WEBGL_compressed_texture_etc'):'없음')+' / 압축 그림 '+(g.W.KTX?Object.keys(g.W.KTX).length+'장':'없음'));}catch(_){}
+  // 시험용 저장(끝나면 되돌림)
+  G.st=G.save.fresh(9);G.st.name='자동검증';G.st.done.push('meet_lumi');G.save.write();G.settings.fast=true;G.applySettings&&G.applySettings();
+  if(G.packs)await G.packs.gate();G.gen++;G.busy=0;G.flow.resume();await K.wait(()=>G.screen==='map',240);await K.wait(K.idle,120);
+  const m0=K.mem(),f0=await K.fps(3000),d0=K.draws();
+  row(m0.total<=BUD?'통과':'실패','U-1 지도 메모리 '+m0.total+'MB (사진 '+m0.img+' 바탕 '+m0.bg+' 판 '+m0.canvas+' 그래픽 '+m0.gpu+' 소리 '+m0.snd+')');
+  row(f0.fps>=30?'통과':'주의','U-15·U-17 지도 화면 빠르기 '+f0.fps+'fps (프레임 95% '+f0.p95+'ms, 가장 긴 '+f0.max+'ms)');
+  row('정보','U-16 지도 한 번 그리기: GPU 명령 '+(d0?d0.n:'모름')+'번, PixiJS 그림 '+(d0&&d0.tex!=null?d0.tex:'모름')+'장, 그리기 판(RenderTarget) '+(d0&&d0.rt!=null?d0.rt:'모름')+'개');
+
+  // ---- 사람에게 부탁하는 4가지 (처음 2~3분)
+  if(!ONLY){bar(0.05);say('노란 창의 부탁을 하나씩 해 주세요.');
+  // U-8 소리
+  const acRun=()=>g.ACs.some(c=>c.state==='running');
+  let r=await ask('1. 화면을 한 번 눌러 주세요','게임 화면 아무 곳이나 한 번 톡 눌러 주세요(소리 켜기).',{check:acRun,timeout:45000});
+  if(r==='ok'){r=await ask('소리가 들리나요?','배경 음악이나 효과음이 들리면 [들려요]. 무음 스위치가 켜져 있으면 끄고 봐 주세요.',{yesno:['들려요','안 들려요'],timeout:30000});
+   row(r==='yes'?'통과':r==='no'?'실패':'미검증','U-8 누른 뒤 소리 엔진 켜짐'+(r==='yes'?', 소리 들림':r==='no'?', 하지만 소리가 안 들림':', 들리는지 답 없음'));}
+  else row('미검증','U-8 소리: '+(g.ACs.length?'소리 엔진 상태 '+g.ACs.map(c=>c.state).join(','):'소리 엔진이 아직 안 만들어짐')+' (누르기 없음)');
+  // U-7 조이스틱(손가락)
+  {let touched=0,pdown=null;const onP=e=>{if(e.pointerType==='touch')touched++;};K.D.addEventListener('pointerdown',onP,true);
+   const hero=()=>{const h=K.D.querySelector('.walker.hero, .hero');return h?h.style.transform+'|'+h.style.left+'|'+h.style.top:'';};const h0=hero();
+   const st0=JSON.stringify(G.st.pos||G.st.mapPos||'');
+   r=await ask('2. 조이스틱으로 걸어 주세요','화면 아래 동그라미(조이스틱)를 손가락으로 끌어 주인공을 3초쯤 걷게 해 주세요.',{check:()=>touched>0&&(hero()!==h0||JSON.stringify(G.st.pos||G.st.mapPos||'')!==st0)&&K.D.querySelector('.joy'),timeout:60000});
+   K.D.removeEventListener('pointerdown',onP,true);
+   row(r==='ok'?'통과':'미검증','U-7 손가락 조이스틱: '+(r==='ok'?'터치로 주인공이 움직임':'움직임을 확인 못 함(터치 '+touched+'번)')+'. 끌어다 놓기·길게 누르기는 퍼즐에서 손으로 확인 필요');}
+  // U-6 회전·주소창
+  {const W=g.W;const sz=()=>W.innerWidth+'x'+W.innerHeight;const s0=sz(),o0=W.innerWidth>W.innerHeight;
+   r=await ask('3. 기기를 돌려 주세요','기기를 가로↔세로로 한 번 돌렸다가, 2초 뒤 원래대로 돌려 주세요.',{check:()=>(W.innerWidth>W.innerHeight)!==o0,timeout:60000});
+   if(r==='ok'){await sleep(1500);const over=K.D.documentElement.scrollWidth>W.innerWidth+2;const out=[...K.D.querySelectorAll('#hud button, .hud-go, .dlg-next')].filter(b=>b.offsetParent).filter(b=>{const q=b.getBoundingClientRect();return q.right>W.innerWidth+2||q.bottom>W.innerHeight+2||q.left<-2||q.top<-2;}).length;
+    row(!over&&!out?'통과':'실패','U-6 돌린 뒤 '+s0+' → '+sz()+': 가로 넘침 '+(over?'있음':'없음')+', 화면 밖 단추 '+out+'개');await ask('원래대로 돌려 주세요','처음 방향으로 돌려 주세요.',{check:()=>(W.innerWidth>W.innerHeight)===o0,timeout:30000});}
+   else row('미검증','U-6 기기 돌리기를 확인 못 함');}
+  // U-5 홈 화면에 다녀오기
+  {let hid=0,back=0;const onV=()=>{if(document.hidden)hid=Date.now();else if(hid)back=Date.now();};document.addEventListener('visibilitychange',onV);
+   r=await ask('4. 홈 화면에 다녀와 주세요','홈 화면으로 나갔다가(또는 다른 앱) 10초쯤 뒤 사파리로 돌아와 주세요.',{check:()=>back>0,timeout:90000});
+   document.removeEventListener('visibilitychange',onV);
+   if(r==='ok'){await sleep(1500);const f=await K.fps(1500);const snd=g.ACs.length?g.ACs.map(c=>c.state).join(','):'없음';
+    row(f.fps>0&&G.screen==='map'&&(!g.ACs.length||acRun())?'통과':'실패','U-5 '+Math.round((back-hid)/1000)+'초 다녀온 뒤: 화면 '+G.screen+', 그리기 '+f.fps+'fps, 소리 엔진 '+snd);}
+   else row('미검증','U-5 홈 화면 다녀오기를 확인 못 함');}
+  say('고마워요. 이제 화면을 켜 둔 채 두시면 돼요(약 20분).');}
+
+  // ---- U-1·U-3 장소 한 바퀴
+  if(!ONLY){const CH=['s2_1','s3_1','s4_1','s5_1','s6_1'],seen=new Set();let worst={m:0,id:''},slow=[],low=[],brk=0;
+  for(let ci=0;ci<CH.length&&!stopped;ci++){const ch=CH[ci];tag(ch+' 준비');mark(ch+' 준비');
+   try{await K.settle();await G.flow.chapter(ch);}catch(e){g.errs.push('별 '+ch+': '+e.message);}
+   if(G.packs)await G.packs.gate();await sleep(2500);await K.toMap();
+   const ids=G.D.places.places.map(q=>G.map.sceneOf(q)).filter(id=>id&&!seen.has(id));
+   for(let i=0;i<ids.length&&!stopped;i++){const id=ids[i];seen.add(id);say('장소 둘러보기 '+ch+': '+id+' ('+(i+1)+'/'+ids.length+')');tag(id+' 들어가는 중');mark(ch+' '+id);bar(0.1+(ci+i/ids.length)/CH.length*0.35);
+    const e=await K.enter(id);await sleep(900);const m=K.mem(),f=await K.fps(1200),b=K.broken();brk+=b;
+    const st=!e.ok?'실패':m.total>BUD||b?'실패':(e.s>8||f.fps<30)?'주의':'통과';row(st,'U-1 '+id+': 들어가기 '+(e.ok?e.s.toFixed(1)+'초':'안 됨')+', 메모리 '+m.total+'MB (그래픽 '+m.gpu+'), '+f.fps+'fps'+(b?', 깨진 그림 '+b+'개':''));
+    if(m.total>worst.m)worst={m:m.total,id};if(e.s>8)slow.push(id);if(f.fps<30)low.push(id);
+    tag(id+' 나오는 중');if(!await K.toMap())row('실패',id+': 지도로 못 나옴 ('+G.screen+')');}}
+  row(worst.m<=BUD?'통과':'실패','U-1·U-2 장소 '+seen.size+'곳: 가장 무거운 곳 '+worst.id+' '+worst.m+'MB'+(slow.length?' / 느린 곳 '+slow.join(','):'')+(low.length?' / 30fps 밑 '+low.join(','):''));
+  row(brk?'실패':'통과','U-3 깨진 그림(못 받은 사진) '+brk+'개');
+
+  // ---- U-1 되풀이
+  const LOOP=[['s3reeds','갈대밭',6],['s3harang','하랑이네',4],['s3dock','나루터',4]];
+  try{await K.settle();await G.flow.chapter('s3_1');}catch(_){}if(G.packs)await G.packs.gate();await sleep(2000);
+  if(!G.st.done.includes('s3h_reedgo'))G.st.done.push('s3h_reedgo');if(!G.st.seen.includes('s3reeds:in'))G.st.seen.push('s3reeds:in');
+  for(let li=0;li<LOOP.length&&!stopped;li++){const [id,nm,n]=LOOP[li];const rows=[];
+   for(let k=0;k<n&&!stopped;k++){say('되풀이 '+nm+' '+(k+1)+'/'+n);tag(nm+' '+(k+1)+'번째');mark('되풀이 '+nm+' '+(k+1));bar(0.45+(li+k/n)/LOOP.length*0.15);
+    const e=await K.enter(id);const V=K.view();
+    if(e.ok&&V&&V.onStep&&id==='s3reeds'){for(const [x,y] of [[1500,1500],[2200,2200],[1200,2600],[3000,2000]]){try{const s=V.spr.hero;V.walk('hero',[x-s.rect[2]/2,y+18-s.rect[3],s.rect[2],s.rect[3]],0);V.onStep(x,y);}catch(_){}await sleep(500);}}
+    const m=K.mem().total,f=await K.fps(1000);await K.toMap();await sleep(1200);
+    rows.push({m,mm:K.mem().total,f:f.fps,dom:K.dom(),iv:K.live.size,up:K.up.size,ok:e.ok});}
+   if(rows.length<2)continue;const a=rows[1],b=rows[rows.length-1];
+   const grow=b.mm-a.mm,gd=b.dom-a.dom,gi=b.iv-a.iv,gu=b.up-a.up,bad=rows.some(r=>!r.ok)||rows.some(r=>r.m>BUD)||grow>5||gd>20||gi>0||gu>0;
+   row(bad?'실패':'통과','U-1 되풀이 '+nm+' '+rows.length+'번: 안에서 '+rows.map(r=>r.m).join('/')+'MB, 나온 뒤 지도 '+rows.map(r=>r.mm).join('→')+'MB, fps '+rows.map(r=>r.f).join('/')+', 화면 요소 '+a.dom+'→'+b.dom+', 타이머 '+a.iv+'→'+b.iv+', 시계 일감 '+a.up+'→'+b.up);}
+
+  // ---- U-4 그래픽 연결 끊김(WebGL 컨텍스트 손실) 뒤 되살아나는지
+  if(!stopped){say('그래픽 연결을 일부러 끊었다 붙여 봐요');tag('U-4 그래픽 끊기');mark('U-4');bar(0.62);
+   try{await K.toMap();const gl=G.px&&G.px.app.renderer.gl,ext=gl&&gl.getExtension('WEBGL_lose_context');
+    if(!ext)row('미검증','U-4 이 기기에서 연결 끊기 시험 기능이 없어요');
+    else{ext.loseContext();await sleep(2500);const lost=gl.isContextLost();ext.restoreContext();await sleep(3000);
+     const back=!gl.isContextLost();let e2={ok:false};try{e2=await K.enter('plaza');}catch(_){}await sleep(1500);const d=K.draws();
+     const a=await ask('그림이 보이나요?','지금 게임 화면에 광장 그림(땅·건물)이 보이면 [보여요], 검거나 비었으면 [안 보여요].',{yesno:['보여요','안 보여요'],timeout:40000});
+     row(back&&e2.ok&&a!=='no'&&d&&d.n>0?'통과':a==='skip'||a==='timeout'?'주의':'실패','U-4 끊김 '+(lost?'일어남':'안 일어남')+' → 되살림 '+(back?'됨':'안 됨')+', 장소 들어가기 '+(e2.ok?'됨':'안 됨')+', 그리기 명령 '+(d?d.n:'모름')+'번, 눈으로 '+({yes:'보임',no:'안 보임'}[a]||'답 없음'));}
+   }catch(e){row('실패','U-4 시험 중 오류: '+e.message);}}
+
+  }
+  // ---- U-11 별 3 하랑이네 갈대 단계: 처음부터 자동으로 놀아 봄(퍼즐은 넘김)
+  if(!stopped){say('별 3을 처음부터 자동으로 놀아 봐요(최대 10분)');mark('U-11');K.advOff();
+   try{await K.settle();G.st=Object.assign(G.save.fresh(9),JSON.parse(S2SAVE));G.save.write();await G.flow.chapter('s3_1');}catch(e){g.errs.push('별3 시작: '+e.message);}
+   if(G.packs)await G.packs.gate();await sleep(2000);const bot=new g.W.Function(BOTSRC);const s0=G.st.stars||0,t0=Date.now();let last='',same=0,res='',passed=false,nudge=0;const nlog=[];
+   while(Date.now()-t0<600000&&!stopped){let a='';try{a=bot();}catch(e){a='err';}const sig=[G.screen,G.st.place,G.st.done.length].join('|');same=sig===last&&!/^map:walk /.test(a)?same+1:0;last=sig;
+    const dn=G.st.done;const ri=dn.indexOf('s3h_reedgo');if(ri>=0&&dn.length>ri+1)passed=true;
+    tag('U-11 '+G.screen+' '+(G.st.place||'')+' '+Math.round((Date.now()-t0)/1000)+'초');bar(0.65+Math.min(1,(Date.now()-t0)/600000)*0.2);
+    if((G.st.stars||0)>s0){res='별 3 끝까지 감';break;}if(same>240&&nudge<4&&G.screen==='scene'&&!/s3harang/.test(sig)){nudge++;nlog.push(G.st.place);try{await K.toMap();}catch(_){}same=0;last='';continue;}
+    if(same>240){const D2=G.dialog&&G.dialog.active,ov=[...K.D.querySelectorAll('#overlay *')].filter(e=>!e.children.length).slice(0,5).map(e=>e.className+':'+(e.textContent||'').slice(0,12)).join(';'),nx=[...K.D.querySelectorAll('.dlg-next')].map(e=>e.className).join('|');res='같은 상태 1분 넘게 멈춤('+sig+', 마지막 '+dn.slice(-2).join(',')+', 마지막 조작 '+a+', busy '+G.busy+', 대사 '+(D2?'켜짐':'꺼짐')+', 다음단추 '+nx+', 화면 위 '+ov+')';break;}await sleep(250);}
+   if(!res)res='10분 안에 못 끝냄(마지막 '+G.st.done.slice(-2).join(',')+')';
+   row((G.st.stars||0)>s0?'통과':passed?'주의':'실패','U-11 별 3 자동 놀이(퍼즐 넘김): '+res+(passed?' / 갈대 단계는 지나감':' / 갈대 단계(s3h_reedgo) 뒤로 못 감')+(nudge?' / 도구가 멈춘 곳 '+nlog.join(',')+'에서 지도로 나가 주는 도움 '+nudge+'번(게임 문제인지 도구 문제인지 이 값만으로는 알 수 없음)':''));K.advOn();}
+
+  // ---- U-14 5분 켜 두기
+  if(!stopped&&!ONLY){try{await K.toMap();}catch(_){}const seq=[];for(let i=0;i<5&&!stopped;i++){say('지도에서 켜 두기 '+(i+1)+'/5분');tag('U-14 켜 두기 '+(i+1)+'분');mark('U-14 '+(i+1)+'분');bar(0.86+i*0.02);await sleep(60000);seq.push({m:K.mem().total,d:K.dom(),u:K.up.size,iv:K.live.size});}
+   if(seq.length>1){const a=seq[0],b=seq[seq.length-1];row(b.m-a.m>5||b.d-a.d>20||b.u>a.u||b.iv>a.iv?'실패':'통과','U-14 지도 '+seq.length+'분: 메모리 '+seq.map(s=>s.m).join('→')+'MB, 화면 요소 '+a.d+'→'+b.d+', 일감 '+a.u+'→'+b.u+', 타이머 '+a.iv+'→'+b.iv+' (1시간은 손으로)');}}
+
+  row('미검증','U-12 퍼즐 정답·오답: 사람이 직접 풀어 봐야 해요(별 1·2·3 퍼즐 창, 일부러 한 번 틀려 보기)');
+  row('미검증','U-13 새 탭 이어하기: 이 검증이 끝난 뒤 학생 웹을 새 탭으로 열어 [이어서 여행하기]로 확인');
+  row('정보','U-18 로컬 개발 서버는 사파리 검증 대상이 아님(PC에서 qa 시험)');
+  const E=[...new Set(g.errs)];row(E.length?'실패':'통과','오류 '+E.length+'개'+(E.length?': '+E.slice(0,8).join(' | '):''));
+  if(stopped)row('주의','중간에 멈춤을 눌렀어요.');
+  const nb=R.filter(r=>r[0]==='실패').length,nw=R.filter(r=>r[0]==='주의').length,nu=R.filter(r=>r[0]==='미검증').length;
+  row(nb?'실패':'통과','모두: 실패 '+nb+', 주의 '+nw+', 미검증 '+nu);
+ }catch(e){row('실패','검증 도구 오류: '+(e&&e.message||e));}
+ finally{try{window.__K&&window.__K.advOff();}catch(_){}closeGame();restoreSave();try{localStorage.removeItem(KEY);}catch(_){}bar(1);say('끝났어요. [결과 복사]를 눌러 채팅에 붙여 넣어 주세요.');$('go').disabled=false;running=false;}}
+$('go').onclick=()=>run();$('stop').onclick=()=>{stopped=true;};
+$('copy').onclick=async()=>{const t='[사파리 자동 검증 결과]\n'+R.map(r=>r[0]+' '+r[1]).join('\n');try{await navigator.clipboard.writeText(t);say('복사했어요. 채팅에 붙여 넣어 주세요.');}catch(_){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();say('복사했어요. 채팅에 붙여 넣어 주세요.');}};
+// 주소를 열면 저절로 시작(지난번에 사파리가 죽었으면 저절로 시작하지 않고 결과를 먼저 보여 줌)
+if(crashed)say('지난 검증이 중간에 끊겼어요(위 결과). [처음부터 다시]를 누르면 다시 해요.');else setTimeout(run,1500);
+</script></body></html>
