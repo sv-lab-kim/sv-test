@@ -110,7 +110,7 @@ async function run(){if(running)return;running=true;stopped=false;$('go').disabl
   row('정보','U-16 지도 한 번 그리기: GPU 명령 '+(d0?d0.n:'모름')+'번, PixiJS 그림 '+(d0&&d0.tex!=null?d0.tex:'모름')+'장, 그리기 판(RenderTarget) '+(d0&&d0.rt!=null?d0.rt:'모름')+'개');
 
   // ---- 사람에게 부탁하는 4가지 (처음 2~3분)
-  if(!ONLY){bar(0.05);say('노란 창의 부탁을 하나씩 해 주세요.');
+  if(!ONLY||ONLY==='asks'){bar(0.05);say('노란 창의 부탁을 하나씩 해 주세요.');
   // U-8 소리
   const acRun=()=>g.ACs.some(c=>c.state==='running');
   let r=await ask('1. 화면을 한 번 눌러 주세요','게임 화면 아무 곳이나 한 번 톡 눌러 주세요(소리 켜기).',{check:acRun,timeout:45000});
@@ -126,13 +126,13 @@ async function run(){if(running)return;running=true;stopped=false;$('go').disabl
    row(r==='ok'?'통과':'미검증','U-7 손가락 조이스틱: '+(r==='ok'?'터치로 주인공이 움직임':'움직임을 확인 못 함(터치 '+touched+'번)')+'. 끌어다 놓기·길게 누르기는 퍼즐에서 손으로 확인 필요');}
   // U-6 회전·주소창
   {const W=g.W;const sz=()=>W.innerWidth+'x'+W.innerHeight;const s0=sz(),o0=W.innerWidth>W.innerHeight;
-   r=await ask('3. 기기를 돌려 주세요','기기를 가로↔세로로 한 번 돌렸다가, 2초 뒤 원래대로 돌려 주세요.',{check:()=>(W.innerWidth>W.innerHeight)!==o0,timeout:60000});
+   r=await ask('3. 기기를 돌려 주세요','기기를 가로↔세로로 한 번 돌렸다가, 2초 뒤 원래대로 돌려 주세요.',{check:()=>(W.innerWidth>W.innerHeight)!==o0,timeout:120000});
    if(r==='ok'){await sleep(1500);const over=K.D.documentElement.scrollWidth>W.innerWidth+2;const out=[...K.D.querySelectorAll('#hud button, .hud-go, .dlg-next')].filter(b=>b.offsetParent).filter(b=>{const q=b.getBoundingClientRect();return q.right>W.innerWidth+2||q.bottom>W.innerHeight+2||q.left<-2||q.top<-2;}).length;
     row(!over&&!out?'통과':'실패','U-6 돌린 뒤 '+s0+' → '+sz()+': 가로 넘침 '+(over?'있음':'없음')+', 화면 밖 단추 '+out+'개');await ask('원래대로 돌려 주세요','처음 방향으로 돌려 주세요.',{check:()=>(W.innerWidth>W.innerHeight)===o0,timeout:30000});}
    else row('미검증','U-6 기기 돌리기를 확인 못 함');}
   // U-5 홈 화면에 다녀오기
   {let hid=0,back=0;const onV=()=>{if(document.hidden)hid=Date.now();else if(hid)back=Date.now();};document.addEventListener('visibilitychange',onV);
-   r=await ask('4. 홈 화면에 다녀와 주세요','홈 화면으로 나갔다가(또는 다른 앱) 10초쯤 뒤 사파리로 돌아와 주세요.',{check:()=>back>0,timeout:90000});
+   r=await ask('4. 홈 화면에 다녀와 주세요','홈 화면으로 나갔다가(또는 다른 앱) 10초쯤 뒤 사파리로 돌아와 주세요.',{check:()=>back>0,timeout:150000});
    document.removeEventListener('visibilitychange',onV);
    if(r==='ok'){await sleep(1500);const f=await K.fps(1500);const snd=g.ACs.length?g.ACs.map(c=>c.state).join(','):'없음';
     row(f.fps>0&&G.screen==='map'&&(!g.ACs.length||acRun())?'통과':'실패','U-5 '+Math.round((back-hid)/1000)+'초 다녀온 뒤: 화면 '+G.screen+', 그리기 '+f.fps+'fps, 소리 엔진 '+snd);}
@@ -179,10 +179,11 @@ async function run(){if(running)return;running=true;stopped=false;$('go').disabl
 
   }
   // ---- U-11 별 3 하랑이네 갈대 단계: 처음부터 자동으로 놀아 봄(퍼즐은 넘김)
-  if(!stopped){say('별 3을 처음부터 자동으로 놀아 봐요(최대 10분)');mark('U-11');K.advOff();
+  if(!stopped&&(!ONLY||ONLY==='11')){say('별 3을 처음부터 자동으로 놀아 봐요(최대 10분)');mark('U-11');K.advOff();
    try{await K.settle();G.st=Object.assign(G.save.fresh(9),JSON.parse(S2SAVE));G.save.write();await G.flow.chapter('s3_1');}catch(e){g.errs.push('별3 시작: '+e.message);}
    if(G.packs)await G.packs.gate();await sleep(2000);const bot=new g.W.Function(BOTSRC);const s0=G.st.stars||0,t0=Date.now();let last='',same=0,res='',passed=false,nudge=0;const nlog=[];
    while(Date.now()-t0<600000&&!stopped){let a='';try{a=bot();}catch(e){a='err';}const sig=[G.screen,G.st.place,G.st.done.length].join('|');same=sig===last&&!/^map:walk /.test(a)?same+1:0;last=sig;
+    if(a==='wait:busy'&&same>80&&nudge<4){nudge++;nlog.push('busy '+G.screen+':'+G.st.place);try{G.busy=0;G.gen++;}catch(_){}same=0;last='';continue;}
     const dn=G.st.done;const ri=dn.indexOf('s3h_reedgo');if(ri>=0&&dn.length>ri+1)passed=true;
     tag('U-11 '+G.screen+' '+(G.st.place||'')+' '+Math.round((Date.now()-t0)/1000)+'초');bar(0.65+Math.min(1,(Date.now()-t0)/600000)*0.2);
     if((G.st.stars||0)>s0){res='별 3 끝까지 감';break;}if(same>240&&nudge<4&&G.screen==='scene'&&!/s3harang/.test(sig)){nudge++;nlog.push(G.st.place);try{await K.toMap();}catch(_){}same=0;last='';continue;}
